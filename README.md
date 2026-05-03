@@ -1,50 +1,81 @@
-# Welcome to your Expo app 👋
+# Qahwa (قهوة)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> An Arabic-first social coffee diary for Saudi specialty coffee enthusiasts.
 
-## Get started
+Track the coffees you try, earn badges for exploration, and share your taste with
+friends — all in a beautifully Arabic-first mobile experience.
 
-1. Install dependencies
+## Status
 
-   ```bash
-   npm install
-   ```
+Early development. The foundation is in place; the user-facing features are being
+built. What works today:
 
-2. Start the app
+- Boots on iOS and Android via [Expo Go](https://expo.dev/go)
+- Connects to Supabase (auth + database client wired up)
+- Renders the brand mark and a database connectivity smoke test
 
-   ```bash
-   npx expo start
-   ```
+## Tech stack
 
-In the output, you'll find options to open the app in a
+- [Expo](https://expo.dev) SDK 54 — React Native 0.81, React 19
+- [Expo Router](https://docs.expo.dev/router/introduction/) 6 — file-based routing
+- TypeScript (strict)
+- [NativeWind](https://www.nativewind.dev/) 4 + Tailwind v3 — utility styling
+- [Supabase](https://supabase.com) — auth, Postgres, Row-Level Security
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Local development
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Prerequisites
 
-## Get a fresh project
+- Node 20+ (tested with 24)
+- A Supabase project with a `badges` table seeded
+- (Optional) [Expo Go](https://expo.dev/go) on your phone for quick previews
 
-When you're ready, run:
+### Setup
 
 ```bash
-npm run reset-project
+# 1. Clone
+git clone https://github.com/aalrehan/QahwaApp.git qahwa
+cd qahwa
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment
+cp .env.example .env
+# Then edit .env with your Supabase URL and anon key
+
+# 4. Start the dev server
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with Expo Go on your phone (same Wi-Fi as your dev machine).
 
-## Learn more
+> After editing `.env`, fully restart Expo (`Ctrl+C`, then `npx expo start --clear`).
+> `EXPO_PUBLIC_*` vars are baked into the bundle at build time, not hot-reloaded.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Project structure
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+qahwa/
+├── app/                 # Screens (Expo Router file-based routing)
+│   ├── _layout.tsx      # Root Stack layout, loads global.css
+│   └── index.tsx        # Home screen — brand mark + DB smoke test
+├── lib/
+│   ├── supabase.ts      # Supabase singleton (AsyncStorage adapter)
+│   └── theme.ts         # Design tokens (colors + font names)
+├── assets/              # Images (and fonts, eventually)
+├── global.css           # Tailwind directives
+├── tailwind.config.js   # NativeWind v4 + Tailwind v3 config
+└── ...                  # Standard Expo + Babel + Metro config
+```
 
-## Join the community
+For the full session log, see [SESSION_NOTES_2026-05-03.txt](./SESSION_NOTES_2026-05-03.txt).
 
-Join our community of developers creating universal apps.
+## Roadmap
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [ ] Custom Arabic typography (IBM Plex Sans Arabic, Tajawal, Amiri, Cormorant Garamond)
+- [ ] RTL layout via `I18nManager` + `expo-localization`
+- [ ] Auth screens (Supabase magic links)
+- [ ] Coffee diary entry flow
+- [ ] Badge / achievement display
+- [ ] Social feed
