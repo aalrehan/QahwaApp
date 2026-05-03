@@ -1,0 +1,806 @@
+================================================================================
+QAHWA (قهوة) — FOUNDATION BUILD SESSION NOTES
+Date: 2026-05-03
+Working directory: C:\Users\aalre\Projects\qahwa
+Platform: Windows 11 Home, Node 24.15.0, npm 11.12.1
+Test device: Samsung Galaxy S26 Ultra (via Expo Go)
+================================================================================
+
+PROJECT CONTEXT
+--------------------------------------------------------------------------------
+Qahwa is an Arabic-first social coffee diary mobile app for Saudi specialty
+coffee enthusiasts. The brand mark is "قهوة" with "QAHWA" as the romanization.
+This session built the foundation: scaffolding, dependencies, styling system,
+database client, design tokens, and a smoke-test starter screen.
+
+The session followed an explain-first workflow: each step was explained in
+detail with rationale and decisions surfaced before any tool calls were made,
+the user approved, then the step was executed and summarized. This is the
+preferred working style for this project.
+
+
+================================================================================
+STEP 1 — SCAFFOLD THE EXPO PROJECT
+================================================================================
+
+WHAT WE DID:
+  Ran `npx create-expo-app@latest qahwa` in C:\Users\aalre\Projects\
+
+WHY THE DEFAULT TEMPLATE (not blank-typescript):
+  - Default template pre-wires Expo Router + TypeScript + a tabs example
+  - Cleaner to delete the example tabs in Step 8 than to manually wire
+    Expo Router into a blank template
+  - The blank-typescript template doesn't include Router setup
+
+WHAT GOT CREATED:
+  qahwa/
+  ├── README.md
+  ├── app/                  ← screens (Expo Router file-based routing)
+  │   ├── (tabs)/          ← example tabs (deleted later in Step 8)
+  │   │   ├── _layout.tsx
+  │   │   ├── explore.tsx
+  │   │   └── index.tsx
+  │   ├── _layout.tsx       ← root Stack layout
+  │   └── modal.tsx         ← example modal (deleted later)
+  ├── assets/               ← images (will hold fonts later)
+  ├── components/           ← example UI components (deleted later)
+  ├── constants/            ← example theme.ts (deleted later)
+  ├── hooks/                ← example use-color-scheme hooks (deleted later)
+  ├── scripts/              ← reset-project.js utility (kept)
+  ├── app.json              ← Expo configuration (display name, icon, etc.)
+  ├── eslint.config.js      ← ESLint setup
+  ├── package.json
+  ├── package-lock.json
+  ├── tsconfig.json         ← TypeScript config (strict, @/* alias)
+  └── node_modules/
+
+VERSIONS PINNED BY THE SCAFFOLD:
+  - Expo SDK             ~54.0.33   (latest stable)
+  - React                19.1.0
+  - React Native         0.81.5
+  - Expo Router          ~6.0.23
+  - TypeScript           ~5.9.2
+  - expo-font            ~14.0.11   (already included — saved an install in Step 2)
+  - react-native-reanimated  ~4.1.1 (already included — needed by NativeWind v4)
+  - react-native-safe-area-context ~5.6.0 (already included — needed by NativeWind v4)
+
+
+================================================================================
+STEP 2 — INSTALL CORE DEPENDENCIES
+================================================================================
+
+WHAT WE DID:
+  Two install commands, run sequentially because both modify node_modules:
+
+  Command 1 (Expo-aware packages with version matching):
+    npx expo install @react-native-async-storage/async-storage \
+                     react-native-url-polyfill \
+                     expo-secure-store \
+                     expo-localization
+
+  Command 2 (pure JS packages):
+    npm install @supabase/supabase-js nativewind tailwindcss
+
+WHY `expo install` vs `npm install`:
+  `expo install` checks each package against your installed Expo SDK and picks
+  the version Expo has tested as compatible. For `expo-*` packages and known
+  React Native libs, this avoids "your version of X doesn't work with SDK 54"
+  landmines. For pure JS packages (Supabase, NativeWind, Tailwind), it falls
+  through to npm, so we use npm directly there.
+
+VERSIONS LANDED:
+  - @supabase/supabase-js                       ^2.105.1   (latest)
+  - @react-native-async-storage/async-storage   2.2.0      (SDK 54 matched)
+  - react-native-url-polyfill                   ^3.0.0     (latest)
+  - expo-secure-store                           ~15.0.8    (SDK 54 matched)
+  - expo-localization                           ~17.0.8    (SDK 54 matched)
+  - nativewind                                  ^4.2.3     (NativeWind v4)
+  - tailwindcss                                 ^3.4.19    (Tailwind v3 — see warning)
+
+⚠️  IMPORTANT: NativeWind v4 only supports Tailwind v3.x, NOT v4.
+   When reading docs, make sure you're on the v3 Tailwind site, not v4.
+
+CONFIG PLUGINS AUTO-ADDED TO app.json:
+  expo install detected and auto-added expo-secure-store and expo-localization
+  to the "plugins" array in app.json. These are required so the native build
+  knows about the modules.
+
+PURPOSE OF EACH PACKAGE:
+  - @supabase/supabase-js: database/auth client
+  - @react-native-async-storage/async-storage: required by Supabase to persist
+    sessions across app restarts (replaces browser localStorage)
+  - react-native-url-polyfill: RN's URL global is incomplete; Supabase uses
+    URL.searchParams which crashes without this polyfill
+  - expo-secure-store: encrypted token storage (iOS Keychain / Android Keystore);
+    installed but NOT yet wired up — currently using AsyncStorage for sessions
+  - expo-localization: RTL detection and locale info (for Arabic-first design)
+  - nativewind: lets us use `className="bg-red-500"` on React Native components
+  - tailwindcss: the underlying utility class generator
+
+THE 14 MODERATE-SEVERITY VULNERABILITIES WARNING:
+  npm reported 14 moderate vulnerabilities. These are almost always transitive
+  dev dependencies of build tools (not runtime code). Standard for fresh React
+  Native projects — safe to ignore unless `npm audit` flags something in a
+  runtime dependency you actually ship.
+
+
+================================================================================
+STEP 3 — CONFIGURE NATIVEWIND v4
+================================================================================
+
+WHY EACH FILE EXISTS:
+
+(1) tailwind.config.js (NEW)
+    File: C:\Users\aalre\Projects\qahwa\tailwind.config.js
+    Contents:
+      /** @type {import('tailwindcss').Config} */
+      module.exports = {
+        content: [
+          "./app/**/*.{js,jsx,ts,tsx}",
+          "./components/**/*.{js,jsx,ts,tsx}",
+        ],
+        presets: [require("nativewind/preset")],
+        theme: {
+          extend: {},
+        },
+        plugins: [],
+      };
+
+    - `content` tells Tailwind which files to scan for className strings.
+      Without this, no styles get generated.
+    - `presets: [require("nativewind/preset")]` is the v4-specific bit —
+      v3 didn't need it. It tells Tailwind to emit RN-compatible styles.
+    - `theme.extend: {}` is empty for now. Later we may mirror our design
+      tokens here so we can write `bg-bg` instead of inline color styles.
+
+(2) global.css (NEW)
+    File: C:\Users\aalre\Projects\qahwa\global.css
+    Contents:
+      @tailwind base;
+      @tailwind components;
+      @tailwind utilities;
+
+    - The standard 3 Tailwind directives.
+    - Metro reads this through the withNativeWind() wrapper and turns these
+      directives into the styles your components use at runtime.
+
+(3) babel.config.js (NEW)
+    File: C:\Users\aalre\Projects\qahwa\babel.config.js
+    Contents:
+      module.exports = function (api) {
+        api.cache(true);
+        return {
+          presets: [
+            ["babel-preset-expo", { jsxImportSource: "nativewind" }],
+            "nativewind/babel",
+          ],
+        };
+      };
+
+    - `jsxImportSource: "nativewind"` is the magic that makes className work
+      on every native component out of the box. Without it, you'd need to
+      manually wrap components with a styled() helper like in NativeWind v2.
+    - `nativewind/babel` preset must come AFTER babel-preset-expo so the
+      transformation happens in the right order.
+
+(4) metro.config.js (NEW)
+    File: C:\Users\aalre\Projects\qahwa\metro.config.js
+    Contents:
+      const { getDefaultConfig } = require("expo/metro-config");
+      const { withNativeWind } = require("nativewind/metro");
+
+      const config = getDefaultConfig(__dirname);
+
+      module.exports = withNativeWind(config, { input: "./global.css" });
+
+    - Metro is React Native's bundler.
+    - `withNativeWind` wraps Metro's config to compile Tailwind from
+      ./global.css whenever a JS/TSX file changes.
+
+(5) app/_layout.tsx (MODIFIED)
+    Added `import '../global.css';` at the top so styles load once at app boot.
+
+DECISIONS MADE:
+  - Content paths scan ./app and ./components only. If we add UI files in
+    other folders later (lib/, screens/), we need to add them here.
+  - Dark mode left at default (`media`, system-driven). Can switch to manual
+    later if we add a dark theme.
+  - Did NOT mirror design tokens into tailwind.config.js yet — they live in
+    lib/theme.ts and we use them inline. This was a deliberate choice to
+    keep moving parts to a minimum until the foundation was verified.
+
+
+================================================================================
+STEP 4 — TYPESCRIPT DECLARATION FOR NATIVEWIND
+================================================================================
+
+WHAT WE DID:
+  Created a single-line declaration file.
+
+  File: C:\Users\aalre\Projects\qahwa\nativewind-env.d.ts
+  Contents:
+    /// <reference types="nativewind/types" />
+
+WHY:
+  Without this, TypeScript will complain that View, Text, etc. don't have a
+  `className` prop, since React Native's built-in types don't know about
+  NativeWind. This file extends the JSX types globally so `className="..."`
+  is type-safe everywhere.
+
+VERIFIED:
+  tsconfig.json includes `**/*.ts` in its `include` array, so this file is
+  auto-picked-up. No tsconfig changes needed.
+
+TSCONFIG NOTES (for future reference):
+  - `strict: true` is enabled
+  - Path alias: `@/*` maps to project root, so `import { theme } from "@/lib/theme"`
+    works from anywhere
+
+
+================================================================================
+STEP 5 — SUPABASE CLIENT
+================================================================================
+
+FILE: C:\Users\aalre\Projects\qahwa\lib\supabase.ts
+
+CONTENTS:
+  import 'react-native-url-polyfill/auto';
+
+  import AsyncStorage from '@react-native-async-storage/async-storage';
+  import { createClient } from '@supabase/supabase-js';
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+
+  export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+
+WHY EACH LINE:
+  1. `react-native-url-polyfill/auto` — side-effect import that patches the
+     URL global. Must come before the Supabase client is used or it crashes
+     parsing the Supabase URL.
+  2. `process.env.EXPO_PUBLIC_*` — Expo only exposes env vars to client code
+     if prefixed with EXPO_PUBLIC_. The non-null assertion `!` is intentional:
+     if these are missing, we want a clear crash at boot, not a confusing
+     query failure later.
+  3. `storage: AsyncStorage` — by default Supabase uses localStorage which
+     doesn't exist on native. AsyncStorage is the RN equivalent.
+  4. `detectSessionInUrl: false` — only relevant for OAuth web redirects.
+     On native, deep links are handled differently. Leaving this on causes
+     warnings.
+
+DECISIONS MADE:
+  - Singleton export: `export const supabase = ...` runs once at module load
+    and is reused across all imports.
+  - AsyncStorage (plaintext) chosen over expo-secure-store (encrypted) for
+    now. Matches Supabase's default recommendation. expo-secure-store IS
+    installed (Step 2) but not yet wired up. Future task: write a custom
+    storage adapter that proxies to SecureStore for stronger token security.
+
+SECURITY NOTE:
+  The anon key is meant to be public — it's Row-Level-Security at the database
+  level that protects your data, not the key itself. Never put a service-role
+  key into an EXPO_PUBLIC_* var.
+
+
+================================================================================
+STEP 6 — .ENV, .ENV.EXAMPLE, AND .GITIGNORE
+================================================================================
+
+FILES:
+
+(1) .env.example (NEW, committed to source control)
+    File: C:\Users\aalre\Projects\qahwa\.env.example
+    Contents:
+      EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+      EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+
+(2) .env (NEW, gitignored)
+    File: C:\Users\aalre\Projects\qahwa\.env
+    Contents: (real Supabase credentials — filled in by user)
+
+(3) .gitignore (MODIFIED)
+    File: C:\Users\aalre\Projects\qahwa\.gitignore
+    Added `.env` to the local env files section. The existing rule was
+    `.env*.local` which only matched files like `.env.local`, NOT `.env`
+    itself. Without our addition, `.env` would have been committed.
+    Final section now reads:
+      # local env files
+      .env
+      .env*.local
+
+WHY .env.example STILL GETS COMMITTED:
+  In gitignore, `.env` matches files literally named `.env`, not files
+  starting with `.env`. So `.env.example` is unaffected by our `.env` rule
+  and stays committed (as intended — it's a template for other devs).
+
+CRITICAL NOTE ABOUT EXPO_PUBLIC_ ENV VARS:
+  These are EMBEDDED INTO THE APP BUNDLE AT BUILD TIME, not loaded at
+  runtime. Implications:
+    - They are NOT secrets. Anyone who downloads the app's APK can extract them.
+    - This is fine for the Supabase URL and anon key (anon key is meant to
+      be public, RLS protects data).
+    - NEVER put a Supabase service-role key, API secret, or anything truly
+      sensitive into an EXPO_PUBLIC_* var.
+    - After editing .env, you MUST fully restart Expo (Ctrl-C and re-run
+      `npx expo start --clear`). Hot reload does NOT pick up env changes.
+
+
+================================================================================
+STEP 7 — DESIGN TOKENS
+================================================================================
+
+FILE: C:\Users\aalre\Projects\qahwa\lib\theme.ts
+
+CONTENTS:
+  export const theme = {
+    colors: {
+      bg: '#FAF7F2',
+      surface: '#FFFFFF',
+      surface2: '#F4E8D8',
+      border: '#C6986B',
+      borderSoft: '#E8DDD0',
+      brown: '#6B3A1F',
+      brownDeep: '#4A2410',
+      orange: '#D2691E',
+      orangeSoft: '#E8854A',
+      text: '#2A1F15',
+      textSoft: '#5A4A3A',
+      muted: '#8B7355',
+      dim: '#B5A595',
+    },
+    fonts: {
+      arabicDisplay: 'IBMPlexSansArabic',
+      arabicBody: 'Tajawal',
+      arabicDecorative: 'Amiri',
+      englishDisplay: 'CormorantGaramond',
+    },
+  } as const;
+
+  export type Theme = typeof theme;
+
+WHY `as const`:
+  Without `as const`, TypeScript would infer the hex values as `string`,
+  losing their literal types. With `as const`, you get autocomplete on
+  `theme.colors.brown` and the values are typed as their exact literal hex.
+
+USAGE PATTERN:
+  import { theme } from '@/lib/theme';
+  <Text style={{ color: theme.colors.brown }}>قهوة</Text>
+
+FONT NAMES — IMPORTANT NOTE:
+  These are the STRING IDENTIFIERS we'll use later in Text components, but
+  the actual .ttf/.otf files do NOT exist yet. Loading them is a future task:
+    1. Download the fonts (IBM Plex Sans Arabic, Tajawal, Amiri, Cormorant
+       Garamond) from Google Fonts
+    2. Drop them in assets/fonts/
+    3. Load them with expo-font in app/_layout.tsx using useFonts() hook
+
+  Until then, any Text using `fontFamily: theme.fonts.arabicDisplay` will
+  silently fall back to system font. The starter screen uses fontWeight: '700'
+  + fontSize: 96 as a deliberate placeholder — looks like a "real" brand mark
+  even without the custom font.
+
+
+================================================================================
+STEP 8 — STARTER SCREEN
+================================================================================
+
+CLEANUP — FILES DELETED:
+  - app/(tabs)/                 (entire directory: _layout, explore, index)
+  - app/modal.tsx               (example modal screen)
+  - components/                 (entire directory: 6 example .tsx files + ui/)
+  - hooks/                      (use-color-scheme.ts, use-color-scheme.web.ts,
+                                 use-theme-color.ts)
+  - constants/                  (Expo's example theme.ts — different from ours)
+
+WHY: User chose a clean tree over keeping scaffold examples. Fewer files to
+mentally filter out as a new dev navigating the project.
+
+NOTE: scripts/reset-project.js was kept in case we want to nuke and restart
+the example layout in the future.
+
+----------------------------------------
+FILE: C:\Users\aalre\Projects\qahwa\app\_layout.tsx (REWRITTEN, minimal)
+----------------------------------------
+Contents:
+  import '../global.css';
+
+  import { Stack } from 'expo-router';
+  import { StatusBar } from 'expo-status-bar';
+  import 'react-native-reanimated';
+
+  export default function RootLayout() {
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
+
+WHY MINIMAL:
+  - No `unstable_settings` (was anchoring to deleted (tabs))
+  - No explicit Stack.Screen children — Expo Router auto-discovers index.tsx
+    as the home route
+  - No ThemeProvider — we're handling theming via lib/theme.ts directly
+  - StatusBar style="dark" because background is light cream — dark text in
+    the system status bar is more readable
+  - `react-native-reanimated` import retained because NativeWind v4 needs it
+
+----------------------------------------
+FILE: C:\Users\aalre\Projects\qahwa\app\index.tsx (NEW)
+----------------------------------------
+Contents:
+  import { useEffect, useState } from 'react';
+  import { Text, View } from 'react-native';
+
+  import { supabase } from '@/lib/supabase';
+  import { theme } from '@/lib/theme';
+
+  type ConnectionStatus =
+    | { state: 'connecting' }
+    | { state: 'connected'; count: number }
+    | { state: 'failed'; message: string };
+
+  export default function HomeScreen() {
+    const [status, setStatus] = useState<ConnectionStatus>({ state: 'connecting' });
+
+    useEffect(() => {
+      let cancelled = false;
+
+      (async () => {
+        try {
+          const { count, error } = await supabase
+            .from('badges')
+            .select('*', { count: 'exact', head: true });
+
+          if (cancelled) return;
+
+          if (error) {
+            setStatus({ state: 'failed', message: error.message });
+            return;
+          }
+
+          setStatus({ state: 'connected', count: count ?? 0 });
+        } catch (err) {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setStatus({ state: 'failed', message });
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, []);
+
+    return (
+      <View
+        className="flex-1 items-center justify-center px-8"
+        style={{ backgroundColor: theme.colors.bg }}
+      >
+        <Text
+          style={{
+            color: theme.colors.brown,
+            fontSize: 96,
+            fontWeight: '700',
+            textAlign: 'center',
+          }}
+        >
+          قهوة
+        </Text>
+
+        <Text
+          style={{
+            color: theme.colors.brown,
+            fontSize: 18,
+            fontStyle: 'italic',
+            letterSpacing: 4,
+            marginTop: 12,
+          }}
+        >
+          QAHWA
+        </Text>
+
+        <View className="mt-16">
+          <StatusIndicator status={status} />
+        </View>
+      </View>
+    );
+  }
+
+  function StatusIndicator({ status }: { status: ConnectionStatus }) {
+    if (status.state === 'connecting') {
+      return (
+        <Text style={{ color: theme.colors.dim, fontSize: 13 }}>
+          Connecting…
+        </Text>
+      );
+    }
+
+    if (status.state === 'connected') {
+      return (
+        <Text style={{ color: '#2D7A3E', fontSize: 13 }}>
+          ● Supabase connected ({status.count} badges)
+        </Text>
+      );
+    }
+
+    return (
+      <Text style={{ color: '#B33A3A', fontSize: 13, textAlign: 'center' }}>
+        ● Connection failed: {status.message}
+      </Text>
+    );
+  }
+
+KEY DESIGN CHOICES IN THIS FILE:
+
+(a) Discriminated union for ConnectionStatus
+    Using a union type means each state carries only the data it needs
+    (count for connected, message for failed). TypeScript narrows correctly
+    in the StatusIndicator switch.
+
+(b) `cancelled` flag in useEffect
+    Standard React pattern. If the user navigates away before the Supabase
+    query resolves, we don't try to setState on an unmounted component
+    (which would throw a warning in dev and waste a render).
+
+(c) `count: 'exact', head: true`
+    Asks Postgres for the row count without sending the actual rows over
+    the wire. Way cheaper than `.select('*')` then `.length`. Perfect for
+    a smoke test where we just need a number.
+
+(d) try/catch wraps the await
+    The `error` from Supabase only catches database-level errors (bad SQL,
+    RLS denials, table not found). It does NOT catch network failures
+    ("TypeError: Network request failed" when offline). The try/catch
+    catches those.
+
+(e) Hybrid styling
+    NativeWind classes for layout: flex-1, items-center, justify-center,
+    px-8, mt-16
+    Inline `style` for theme colors and typography: backgroundColor, color,
+    fontSize, fontWeight
+    This was deliberate — NativeWind classes can't reference theme.colors.*
+    at runtime (they'd need to be in tailwind.config.js). Keeping moving
+    parts to a minimum until the foundation was verified.
+
+(f) Status colors hard-coded inline
+    Green (#2D7A3E) and red (#B33A3A) are not in our theme tokens. Future
+    enhancement: add `success` and `error` to lib/theme.ts.
+
+
+================================================================================
+STEP 9 — VERIFICATION ON GALAXY S26 ULTRA
+================================================================================
+
+WHAT THE USER DID:
+  1. Filled in .env with real Supabase credentials
+  2. Ran `npx expo start` in C:\Users\aalre\Projects\qahwa\
+  3. Scanned the QR code with Expo Go on Galaxy S26 Ultra
+  4. App loaded and displayed:
+     - Brand mark "قهوة" in big brown letters on cream background
+     - "QAHWA" italic letterspaced subtitle below
+     - Green status text: "● Supabase connected (12 badges)"
+
+WHAT THIS SUCCESS PROVES:
+  ✅ Expo Go bundling works on the test device
+  ✅ Metro + NativeWind compiled successfully (centered layout = NativeWind worked)
+  ✅ TypeScript compiled (@/* aliases resolved, theme types worked)
+  ✅ react-native-url-polyfill loaded (Supabase didn't crash on URL parsing)
+  ✅ AsyncStorage adapter wired up (no native module errors)
+  ✅ EXPO_PUBLIC_* env vars baked into the bundle correctly
+  ✅ Supabase round-trip works end-to-end:
+     - Anon key is valid
+     - badges table exists
+     - RLS allows the anon read
+     - count: 12 returned correctly
+
+
+================================================================================
+COMMON ISSUES + WHAT THEY MEAN
+================================================================================
+
+| What you see                              | What's wrong                       |
+|-------------------------------------------|------------------------------------|
+| Red error screen at boot                  | .env not filled in, OR didn't      |
+|                                           | restart Expo after editing .env    |
+|                                           | (env vars are baked at bundle      |
+|                                           | time, not hot-reloaded — Ctrl-C    |
+|                                           | and re-run `npx expo start         |
+|                                           | --clear`)                          |
+| Stuck on "Connecting…" forever            | Network slow/blocked. Check WiFi.  |
+| Red "Connection failed: relation badges   | Supabase env vars work, but table  |
+| does not exist"                           | isn't there                        |
+| Red "Connection failed: Invalid API key"  | Wrong anon key in .env             |
+| Phone can't connect to Metro              | Phone & PC on different networks,  |
+|                                           | OR Windows Firewall blocking       |
+|                                           | port 8081. Try `npx expo start     |
+|                                           | --tunnel`                          |
+| Invisible "QAHWA" subtitle                | NativeWind didn't compile. Check   |
+|                                           | Metro output for Tailwind errors.  |
+
+
+================================================================================
+USEFUL EXPO TERMINAL SHORTCUTS
+================================================================================
+
+After running `npx expo start`, in the terminal:
+  r       Reload the app on your phone
+  j       Open the JS debugger
+  m       Toggle the dev menu on the phone (or shake your phone)
+  ?       Show all shortcuts
+  Ctrl+C  Stop the server
+
+
+================================================================================
+FINAL PROJECT TREE
+================================================================================
+
+qahwa/
+├── app/
+│   ├── _layout.tsx            ← root Stack, loads global.css, dark StatusBar
+│   └── index.tsx              ← brand mark + Supabase status indicator
+├── assets/                    ← (empty for now; fonts go here next session)
+├── lib/
+│   ├── supabase.ts            ← Supabase singleton client
+│   └── theme.ts               ← design tokens (colors + font names)
+├── scripts/
+│   └── reset-project.js       ← Expo's nuke-and-restart utility
+├── .env                       ← real credentials (gitignored)
+├── .env.example               ← committed template
+├── .gitignore                 ← updated to ignore .env
+├── app.json                   ← Expo config (has expo-secure-store and
+│                                expo-localization config plugins)
+├── babel.config.js            ← jsxImportSource: "nativewind" + nativewind/babel
+├── eslint.config.js
+├── global.css                 ← Tailwind directives
+├── metro.config.js            ← withNativeWind wrapper pointing at global.css
+├── nativewind-env.d.ts        ← TS declaration for className prop
+├── package.json
+├── package-lock.json
+├── README.md
+├── tailwind.config.js         ← NativeWind v4 + Tailwind v3 setup
+├── tsconfig.json              ← strict, @/* aliased to project root
+└── node_modules/
+
+
+================================================================================
+FULL PACKAGE.JSON DEPENDENCIES SNAPSHOT
+================================================================================
+
+dependencies:
+  @expo/vector-icons                              ^15.0.3
+  @react-native-async-storage/async-storage       2.2.0
+  @react-navigation/bottom-tabs                   ^7.4.0   (template, unused now)
+  @react-navigation/elements                      ^2.6.3   (template, unused now)
+  @react-navigation/native                        ^7.1.8   (template, unused now)
+  @supabase/supabase-js                           ^2.105.1
+  expo                                            ~54.0.33
+  expo-constants                                  ~18.0.13
+  expo-font                                       ~14.0.11
+  expo-haptics                                    ~15.0.8
+  expo-image                                      ~3.0.11
+  expo-linking                                    ~8.0.11
+  expo-localization                               ~17.0.8
+  expo-router                                     ~6.0.23
+  expo-secure-store                               ~15.0.8
+  expo-splash-screen                              ~31.0.13
+  expo-status-bar                                 ~3.0.9
+  expo-symbols                                    ~1.0.8
+  expo-system-ui                                  ~6.0.9
+  expo-web-browser                                ~15.0.10
+  nativewind                                      ^4.2.3
+  react                                           19.1.0
+  react-dom                                       19.1.0
+  react-native                                    0.81.5
+  react-native-gesture-handler                    ~2.28.0
+  react-native-reanimated                         ~4.1.1
+  react-native-safe-area-context                  ~5.6.0
+  react-native-screens                            ~4.16.0
+  react-native-url-polyfill                       ^3.0.0
+  react-native-web                                ~0.21.0
+  react-native-worklets                           0.5.1
+  tailwindcss                                     ^3.4.19
+
+devDependencies:
+  @types/react                                    ~19.1.0
+  eslint                                          ^9.25.0
+  eslint-config-expo                              ~10.0.0
+  typescript                                      ~5.9.2
+
+
+================================================================================
+THINGS WE INSTALLED BUT HAVEN'T USED YET
+================================================================================
+
+- expo-secure-store
+    Purpose: encrypted storage (iOS Keychain / Android Keystore)
+    Future: replace AsyncStorage for auth token storage
+
+- expo-localization
+    Purpose: detect device locale and RTL preference
+    Future: gate UI direction (RTL for Arabic) and auto-translate strings
+
+- expo-font
+    Purpose: load custom font files
+    Future: load IBM Plex Sans Arabic, Tajawal, Amiri, Cormorant Garamond
+            from assets/fonts/ in app/_layout.tsx
+
+- The @react-navigation/* packages
+    Purpose: peer dependencies of expo-router; not directly imported by us.
+    Will become relevant when we add nested navigators (e.g., a tab bar
+    inside the authenticated section of the app).
+
+
+================================================================================
+SUGGESTED NEXT SESSION TASKS (in rough order of priority)
+================================================================================
+
+1. git init + initial commit
+   Lock in the foundation before any more changes. ~30 second task.
+
+2. Custom Arabic fonts
+   Download IBM Plex Sans Arabic, Tajawal, Amiri, Cormorant Garamond from
+   Google Fonts. Drop the .ttf files in assets/fonts/. Wire up `useFonts()`
+   from expo-font in app/_layout.tsx. Replace the placeholder fontWeight 700
+   on "قهوة" with the real custom font. The brand mark will go from
+   "looks intentional" to "looks designed."
+
+3. RTL handling
+   Set `I18nManager.forceRTL(true)` for Arabic-first layout. Some layout
+   bugs to expect — RTL reverses flex direction, padding-left becomes
+   padding-end, etc.
+
+4. Auth screen
+   Sign up / sign in flow with Supabase magic links or password. Will
+   create app/(auth)/ folder with login.tsx and signup.tsx, plus an
+   _layout.tsx that protects the rest of the app behind a session check.
+
+5. Mirror theme colors into tailwind.config.js
+   Once everything else is stable, add colors to tailwind.config.js
+   theme.extend.colors so we can write `bg-bg text-brown border-border`
+   instead of inline styles. Cleaner code in the long run.
+
+6. Swap AsyncStorage → SecureStore for auth
+   Write a small adapter that proxies the Supabase storage interface to
+   expo-secure-store. Encrypts session tokens at rest. Important once we
+   have real users.
+
+
+================================================================================
+WORKING-STYLE NOTES (saved to Claude memory for next session)
+================================================================================
+
+The following 3 memory files were saved so a future Claude session starts
+with full context:
+
+1. user_role.md
+   Notes that the user is a "vibe coder" — directs at product level, learns
+   as we build, wants rationale before action.
+
+2. feedback_step_by_step.md
+   Documents the explain → approve → execute → summarize → ask workflow
+   that worked well in this session.
+
+3. project_qahwa.md
+   Full Qahwa project context: what it is, the stack, the current state,
+   and known next-session tasks.
+
+4. MEMORY.md
+   Index file pointing to the above three.
+
+These live at:
+  C:\Users\aalre\.claude\projects\C--Users-aalre-Projects\memory\
+
+
+================================================================================
+END OF SESSION NOTES
+================================================================================
