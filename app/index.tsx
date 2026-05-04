@@ -50,7 +50,7 @@ export default function HomeScreen() {
         style={{
           color: theme.colors.brown,
           fontSize: 96,
-          fontWeight: '700',
+          fontFamily: theme.fonts.arabicDecorative.bold,
           textAlign: 'center',
         }}
       >
@@ -61,7 +61,7 @@ export default function HomeScreen() {
         style={{
           color: theme.colors.brown,
           fontSize: 18,
-          fontStyle: 'italic',
+          fontFamily: theme.fonts.englishDisplay.italic,
           letterSpacing: 4,
           marginTop: 12,
         }}
@@ -79,7 +79,11 @@ export default function HomeScreen() {
 function StatusIndicator({ status }: { status: ConnectionStatus }) {
   if (status.state === 'connecting') {
     return (
-      <Text style={{ color: theme.colors.dim, fontSize: 13 }}>
+      <Text style={{
+        color: theme.colors.dim,
+        fontSize: 13,
+        fontFamily: theme.fonts.arabicBody.regular,
+      }}>
         Connecting…
       </Text>
     );
@@ -87,7 +91,11 @@ function StatusIndicator({ status }: { status: ConnectionStatus }) {
 
   if (status.state === 'connected') {
     return (
-      <Text style={{ color: '#2D7A3E', fontSize: 13 }}>
+      <Text style={{
+        color: theme.colors.success,
+        fontSize: 13,
+        fontFamily: theme.fonts.arabicBody.regular,
+      }}>
         ● Supabase connected ({status.count} badges)
       </Text>
     );
@@ -95,7 +103,12 @@ function StatusIndicator({ status }: { status: ConnectionStatus }) {
 
   return (
     <Text
-      style={{ color: '#B33A3A', fontSize: 13, textAlign: 'center' }}
+      style={{
+        color: theme.colors.error,
+        fontSize: 13,
+        textAlign: 'center',
+        fontFamily: theme.fonts.arabicBody.regular,
+      }}
     >
       ● Connection failed: {status.message}
     </Text>

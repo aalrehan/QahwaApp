@@ -13,12 +13,28 @@ export const theme = {
     textSoft: '#5A4A3A',
     muted: '#8B7355',
     dim: '#B5A595',
+    success: '#2D7A3E',
+    error: '#B33A3A',
   },
   fonts: {
-    arabicDisplay: 'IBMPlexSansArabic',
-    arabicBody: 'Tajawal',
-    arabicDecorative: 'Amiri',
-    englishDisplay: 'CormorantGaramond',
+    arabicDisplay: {
+      regular:  'IBMPlexSansArabic-Regular',
+      medium:   'IBMPlexSansArabic-Medium',
+      semibold: 'IBMPlexSansArabic-SemiBold',
+      bold:     'IBMPlexSansArabic-Bold',
+    },
+    arabicBody: {
+      regular: 'Tajawal-Regular',
+      medium:  'Tajawal-Medium',
+      bold:    'Tajawal-Bold',
+    },
+    arabicDecorative: {
+      regular: 'Amiri-Regular',
+      bold:    'Amiri-Bold',
+    },
+    englishDisplay: {
+      italic: 'CormorantGaramond-Italic',
+    },
   },
 } as const;
 
