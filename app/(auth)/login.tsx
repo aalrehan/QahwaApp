@@ -21,6 +21,10 @@ type Step = 'email' | 'otp' | 'success';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_SECONDS = 30;
+const FIELD_MAX_WIDTH = 360;
+const OTP_LENGTH = 6;
+
+const emptyOtp = (): string[] => Array(OTP_LENGTH).fill('');
 
 function mapEmailError(message: string): string {
   const m = message.toLowerCase();
@@ -52,13 +56,13 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
 
-  const [otp, setOtp] = useState<string[]>(['', '', '', '']);
+  const [otp, setOtp] = useState<string[]>(emptyOtp);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(RESEND_SECONDS);
   const [resendToast, setResendToast] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const otpRefs = useRef<(TextInput | null)[]>([null, null, null, null]);
+  const otpRefs = useRef<(TextInput | null)[]>(Array(OTP_LENGTH).fill(null));
 
   useEffect(() => {
     if (step !== 'otp') return;
@@ -91,7 +95,7 @@ export default function LoginScreen() {
         setEmailError(mapEmailError(error.message));
         return;
       }
-      setOtp(['', '', '', '']);
+      setOtp(emptyOtp());
       setActiveIndex(0);
       setResendSeconds(RESEND_SECONDS);
       setStep('otp');
@@ -131,14 +135,17 @@ export default function LoginScreen() {
     const digitsOnly = value.replace(/\D/g, '');
 
     if (digitsOnly.length > 1) {
-      const distributed = digitsOnly.slice(0, 4).padEnd(4, ' ').split('');
+      const distributed = digitsOnly
+        .slice(0, OTP_LENGTH)
+        .padEnd(OTP_LENGTH, ' ')
+        .split('');
       const next = distributed.map((c) => (c === ' ' ? '' : c));
       setOtp(next);
       const filledCount = next.filter((c) => c !== '').length;
-      const focusIdx = Math.min(filledCount, 3);
+      const focusIdx = Math.min(filledCount, OTP_LENGTH - 1);
       setActiveIndex(focusIdx);
       otpRefs.current[focusIdx]?.focus();
-      if (filledCount === 4) {
+      if (filledCount === OTP_LENGTH) {
         handleVerifyOtp(next.join(''));
       }
       return;
@@ -149,13 +156,13 @@ export default function LoginScreen() {
     setOtp(next);
     setOtpError(null);
 
-    if (digitsOnly && index < 3) {
+    if (digitsOnly && index < OTP_LENGTH - 1) {
       const nextIdx = index + 1;
       setActiveIndex(nextIdx);
       otpRefs.current[nextIdx]?.focus();
     }
 
-    if (next.every((c) => c !== '') && next.join('').length === 4) {
+    if (next.every((c) => c !== '') && next.join('').length === OTP_LENGTH) {
       handleVerifyOtp(next.join(''));
     }
   }
@@ -177,7 +184,7 @@ export default function LoginScreen() {
   async function handleResend() {
     if (resendSeconds > 0) return;
     setOtpError(null);
-    setOtp(['', '', '', '']);
+    setOtp(emptyOtp());
     setActiveIndex(0);
     try {
       const { error } = await supabase.auth.signInWithOtp({
@@ -200,7 +207,7 @@ export default function LoginScreen() {
   function handleChangeEmail() {
     setStep('email');
     setOtpError(null);
-    setOtp(['', '', '', '']);
+    setOtp(emptyOtp());
     setActiveIndex(0);
   }
 
@@ -214,13 +221,14 @@ export default function LoginScreen() {
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingBottom: 32 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ alignItems: 'center', marginTop: 80 }}>
+          <View style={{ alignItems: 'center', width: '100%', marginTop: 80 }}>
             <Text
               style={{
                 color: theme.colors.brown,
                 fontSize: 52,
                 fontFamily: theme.fonts.arabicDecorative.bold,
                 textAlign: 'center',
+                width: '100%',
               }}
             >
               قهوة
@@ -232,13 +240,15 @@ export default function LoginScreen() {
                 fontFamily: theme.fonts.englishDisplay.italic,
                 letterSpacing: 4,
                 marginTop: 4,
+                textAlign: 'center',
+                width: '100%',
               }}
             >
               QAHWA
             </Text>
           </View>
 
-          <View style={{ marginTop: 60 }}>
+          <View style={{ alignItems: 'center', width: '100%', marginTop: 60 }}>
             {step === 'email' && (
               <EmailStep
                 email={email}
@@ -292,13 +302,14 @@ function EmailStep({
   onSubmit: () => void;
 }) {
   return (
-    <View>
+    <View style={{ alignItems: 'center', width: '100%' }}>
       <Text
         style={{
           color: theme.colors.brown,
           fontSize: 22,
           fontFamily: theme.fonts.arabicDisplay.bold,
-          textAlign: 'right',
+          textAlign: 'center',
+          width: '100%',
         }}
       >
         سجّل دخولك
@@ -309,20 +320,29 @@ function EmailStep({
           fontSize: 13,
           fontFamily: theme.fonts.arabicBody.regular,
           marginTop: 6,
-          textAlign: 'right',
+          textAlign: 'center',
+          width: '100%',
         }}
       >
-        سنرسل لك رمزاً مكوناً من 4 أرقام
+        سنرسل لك رمزاً مكوناً من 6 أرقام
       </Text>
 
-      <View style={{ marginTop: 32 }}>
+      <View
+        style={{
+          marginTop: 32,
+          width: '100%',
+          maxWidth: FIELD_MAX_WIDTH,
+          alignSelf: 'center',
+        }}
+      >
         <Text
           style={{
             color: theme.colors.muted,
             fontSize: 12,
             fontFamily: theme.fonts.arabicBody.medium,
             marginBottom: 8,
-            textAlign: 'right',
+            textAlign: 'center',
+            width: '100%',
           }}
         >
           البريد الإلكتروني
@@ -344,7 +364,7 @@ function EmailStep({
             fontSize: 15,
             fontFamily: theme.fonts.arabicBody.regular,
             color: theme.colors.text,
-            textAlign: 'right',
+            textAlign: 'center',
           }}
         />
       </View>
@@ -356,6 +376,9 @@ function EmailStep({
             backgroundColor: 'rgba(179, 58, 58, 0.1)',
             padding: 10,
             borderRadius: 8,
+            width: '100%',
+            maxWidth: FIELD_MAX_WIDTH,
+            alignSelf: 'center',
           }}
         >
           <Text
@@ -363,7 +386,7 @@ function EmailStep({
               color: theme.colors.error,
               fontSize: 12,
               fontFamily: theme.fonts.arabicBody.regular,
-              textAlign: 'right',
+              textAlign: 'center',
             }}
           >
             {emailError}
@@ -371,7 +394,16 @@ function EmailStep({
         </View>
       )}
 
-      <Pressable onPress={onSubmit} disabled={sendDisabled} style={{ marginTop: 24 }}>
+      <Pressable
+        onPress={onSubmit}
+        disabled={sendDisabled}
+        style={{
+          marginTop: 24,
+          width: '100%',
+          maxWidth: FIELD_MAX_WIDTH,
+          alignSelf: 'center',
+        }}
+      >
         <LinearGradient
           colors={[theme.colors.orange, theme.colors.brown]}
           start={{ x: 0, y: 0 }}
@@ -430,13 +462,14 @@ function OtpStep({
   const seconds = String(resendSeconds).padStart(2, '0');
 
   return (
-    <View>
+    <View style={{ alignItems: 'center', width: '100%' }}>
       <Text
         style={{
           color: theme.colors.brown,
           fontSize: 22,
           fontFamily: theme.fonts.arabicDisplay.bold,
-          textAlign: 'right',
+          textAlign: 'center',
+          width: '100%',
         }}
       >
         تحقق من بريدك
@@ -447,7 +480,8 @@ function OtpStep({
           fontSize: 13,
           fontFamily: theme.fonts.arabicBody.regular,
           marginTop: 6,
-          textAlign: 'right',
+          textAlign: 'center',
+          width: '100%',
         }}
       >
         أرسلنا الرمز إلى
@@ -458,7 +492,8 @@ function OtpStep({
           fontSize: 13,
           fontFamily: theme.fonts.arabicBody.medium,
           marginTop: 2,
-          textAlign: 'right',
+          textAlign: 'center',
+          width: '100%',
         }}
       >
         {truncateEmail(email)}
@@ -467,12 +502,13 @@ function OtpStep({
       <View
         style={{
           flexDirection: 'row',
-          gap: 12,
+          direction: 'ltr',
           justifyContent: 'center',
+          gap: 8,
           marginTop: 40,
         }}
       >
-        {[0, 1, 2, 3].map((i) => {
+        {Array.from({ length: OTP_LENGTH }, (_, i) => i).map((i) => {
           const filled = otp[i] !== '';
           const isActive = activeIndex === i;
           return (
@@ -490,8 +526,8 @@ function OtpStep({
               selectTextOnFocus
               editable={!otpLoading}
               style={{
-                width: 60,
-                height: 70,
+                width: 46,
+                height: 60,
                 backgroundColor: filled ? theme.colors.surface2 : theme.colors.surface,
                 borderWidth: 2,
                 borderColor: filled
@@ -499,9 +535,9 @@ function OtpStep({
                   : isActive
                     ? theme.colors.orange
                     : theme.colors.borderSoft,
-                borderRadius: 14,
+                borderRadius: 12,
                 textAlign: 'center',
-                fontSize: 28,
+                fontSize: 24,
                 fontFamily: theme.fonts.arabicDisplay.semibold,
                 color: theme.colors.brown,
               }}
@@ -517,6 +553,9 @@ function OtpStep({
             backgroundColor: 'rgba(179, 58, 58, 0.1)',
             padding: 10,
             borderRadius: 8,
+            width: '100%',
+            maxWidth: FIELD_MAX_WIDTH,
+            alignSelf: 'center',
           }}
         >
           <Text
@@ -539,6 +578,9 @@ function OtpStep({
             backgroundColor: 'rgba(45, 122, 62, 0.12)',
             padding: 10,
             borderRadius: 8,
+            width: '100%',
+            maxWidth: FIELD_MAX_WIDTH,
+            alignSelf: 'center',
           }}
         >
           <Text
@@ -554,13 +596,15 @@ function OtpStep({
         </View>
       )}
 
-      <View style={{ alignItems: 'center', marginTop: 28 }}>
+      <View style={{ alignItems: 'center', width: '100%', marginTop: 28 }}>
         {resendSeconds > 0 ? (
           <Text
             style={{
               color: theme.colors.muted,
               fontSize: 13,
               fontFamily: theme.fonts.arabicBody.regular,
+              textAlign: 'center',
+              width: '100%',
             }}
           >
             إعادة الإرسال خلال 0:{seconds}
@@ -572,6 +616,7 @@ function OtpStep({
                 color: theme.colors.orange,
                 fontSize: 13,
                 fontFamily: theme.fonts.arabicBody.medium,
+                textAlign: 'center',
               }}
             >
               لم يصلك الرمز؟ أعد الإرسال
@@ -580,13 +625,14 @@ function OtpStep({
         )}
       </View>
 
-      <View style={{ alignItems: 'center', marginTop: 16 }}>
+      <View style={{ alignItems: 'center', width: '100%', marginTop: 16 }}>
         <Pressable onPress={onChangeEmail}>
           <Text
             style={{
               color: theme.colors.muted,
               fontSize: 12,
               fontFamily: theme.fonts.arabicBody.regular,
+              textAlign: 'center',
             }}
           >
             تغيير البريد الإلكتروني
@@ -599,14 +645,25 @@ function OtpStep({
 
 function SuccessStep() {
   return (
-    <View style={{ alignItems: 'center', marginTop: 80 }}>
-      <Text style={{ fontSize: 80, color: theme.colors.success }}>✓</Text>
+    <View style={{ alignItems: 'center', width: '100%', marginTop: 80 }}>
+      <Text
+        style={{
+          fontSize: 80,
+          color: theme.colors.success,
+          textAlign: 'center',
+          width: '100%',
+        }}
+      >
+        ✓
+      </Text>
       <Text
         style={{
           color: theme.colors.brown,
           fontSize: 32,
           fontFamily: theme.fonts.arabicDecorative.bold,
           marginTop: 16,
+          textAlign: 'center',
+          width: '100%',
         }}
       >
         تم!
