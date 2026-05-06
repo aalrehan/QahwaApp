@@ -188,16 +188,42 @@ export default function ProfileSetupScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo */}
-          <View style={{ alignItems: 'center', marginTop: 60 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 60,
+            }}
+          >
             <Text
               style={{
                 color: theme.colors.brown,
                 fontSize: 36,
                 fontFamily: theme.fonts.arabicDecorative.bold,
-                textAlign: 'center',
               }}
             >
               قهوة
+            </Text>
+            <View
+              style={{
+                width: 1,
+                height: 20,
+                backgroundColor: theme.colors.border,
+                marginHorizontal: 14,
+                opacity: 0.7,
+                alignSelf: 'center',
+              }}
+            />
+            <Text
+              style={{
+                color: theme.colors.brown,
+                fontSize: 16,
+                fontFamily: theme.fonts.englishDisplay.italic,
+                letterSpacing: 3,
+              }}
+            >
+              QAHWA
             </Text>
           </View>
 

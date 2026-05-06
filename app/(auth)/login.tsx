@@ -221,27 +221,40 @@ export default function LoginScreen() {
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingBottom: 32 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ alignItems: 'center', width: '100%', marginTop: 80 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              marginTop: 80,
+            }}
+          >
             <Text
               style={{
                 color: theme.colors.brown,
                 fontSize: 52,
                 fontFamily: theme.fonts.arabicDecorative.bold,
-                textAlign: 'center',
-                width: '100%',
               }}
             >
               قهوة
             </Text>
+            <View
+              style={{
+                width: 1,
+                height: 20,
+                backgroundColor: theme.colors.border,
+                marginHorizontal: 14,
+                opacity: 0.7,
+                alignSelf: 'center',
+              }}
+            />
             <Text
               style={{
                 color: theme.colors.brown,
-                fontSize: 14,
+                fontSize: 22,
                 fontFamily: theme.fonts.englishDisplay.italic,
-                letterSpacing: 4,
-                marginTop: 4,
-                textAlign: 'center',
-                width: '100%',
+                letterSpacing: 3,
               }}
             >
               QAHWA

@@ -14,28 +14,43 @@ export default function FeedTab() {
           paddingHorizontal: 32,
         }}
       >
-        <Text
+        <View
           style={{
-            color: theme.colors.brown,
-            fontSize: 32,
-            fontFamily: theme.fonts.arabicDecorative.bold,
-            textAlign: 'center',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          قهوة
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.brown,
-            fontSize: 12,
-            fontFamily: theme.fonts.englishDisplay.italic,
-            letterSpacing: 3,
-            marginTop: 2,
-            textAlign: 'center',
-          }}
-        >
-          QAHWA
-        </Text>
+          <Text
+            style={{
+              color: theme.colors.brown,
+              fontSize: 32,
+              fontFamily: theme.fonts.arabicDecorative.bold,
+            }}
+          >
+            قهوة
+          </Text>
+          <View
+            style={{
+              width: 1,
+              height: 20,
+              backgroundColor: theme.colors.border,
+              marginHorizontal: 14,
+              opacity: 0.7,
+              alignSelf: 'center',
+            }}
+          />
+          <Text
+            style={{
+              color: theme.colors.brown,
+              fontSize: 14,
+              fontFamily: theme.fonts.englishDisplay.italic,
+              letterSpacing: 3,
+            }}
+          >
+            QAHWA
+          </Text>
+        </View>
 
         <Text
           style={{
