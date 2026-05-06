@@ -1,6 +1,7 @@
+import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Tabs } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '@/lib/theme';
@@ -30,16 +31,7 @@ function CustomLogButton() {
           end={{ x: 1, y: 1 }}
           style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Text
-            style={{
-              color: theme.colors.bg,
-              fontSize: 28,
-              lineHeight: 30,
-              fontFamily: theme.fonts.arabicBody.bold,
-            }}
-          >
-            +
-          </Text>
+          <Feather name="plus" size={26} color={theme.colors.bg} />
         </LinearGradient>
       </Pressable>
     </View>
@@ -65,7 +57,10 @@ export default function TabsLayout() {
         },
         tabBarLabelStyle: {
           fontFamily: theme.fonts.arabicBody.medium,
-          fontSize: 11,
+          fontSize: 10,
+        },
+        tabBarItemStyle: {
+          backgroundColor: 'transparent',
         },
       }}
     >
@@ -73,14 +68,14 @@ export default function TabsLayout() {
         name="index"
         options={{
           tabBarLabel: 'الرئيسية',
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>🏠</Text>,
+          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="discover"
         options={{
           tabBarLabel: 'اكتشف',
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>🔍</Text>,
+          tabBarIcon: ({ color }) => <Feather name="compass" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -95,14 +90,14 @@ export default function TabsLayout() {
         name="diary"
         options={{
           tabBarLabel: 'مفكرتي',
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>📓</Text>,
+          tabBarIcon: ({ color }) => <Feather name="book-open" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           tabBarLabel: 'ملفي',
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>👤</Text>,
+          tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} />,
         }}
       />
     </Tabs>

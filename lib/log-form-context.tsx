@@ -1,4 +1,5 @@
-import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
+import { Animated, Easing } from 'react-native';
 
 export type CafeSelection = {
   id?: string;
@@ -33,12 +34,17 @@ const INITIAL_DATA: LogFormData = {
   isPublic: true,
 };
 
+const HALF_DURATION = 110;
+const SLIDE_DISTANCE = 30;
+
 type LogFormContextValue = {
   currentStep: number;
   formData: LogFormData;
   setStep: (n: number) => void;
   updateData: (partial: Partial<LogFormData>) => void;
   reset: () => void;
+  fadeAnim: Animated.Value;
+  slideAnim: Animated.Value;
 };
 
 const LogFormContext = createContext<LogFormContextValue | null>(null);
@@ -47,9 +53,58 @@ export function LogFormProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<LogFormData>(INITIAL_DATA);
 
-  const setStep = useCallback((n: number) => {
-    setCurrentStep(Math.max(1, Math.min(6, n)));
-  }, []);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const animatingRef = useRef(false);
+
+  const setStep = useCallback(
+    (newStep: number) => {
+      const target = Math.max(1, Math.min(6, newStep));
+      if (animatingRef.current) return;
+      if (target === currentStep) return;
+
+      const forward = target > currentStep;
+      const outSlide = forward ? -SLIDE_DISTANCE : SLIDE_DISTANCE;
+      const inSlide = forward ? SLIDE_DISTANCE : -SLIDE_DISTANCE;
+
+      animatingRef.current = true;
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: HALF_DURATION,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: outSlide,
+          duration: HALF_DURATION,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setCurrentStep(target);
+        slideAnim.setValue(inSlide);
+        fadeAnim.setValue(0);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: HALF_DURATION,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: HALF_DURATION,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          animatingRef.current = false;
+        });
+      });
+    },
+    [currentStep, fadeAnim, slideAnim],
+  );
 
   const updateData = useCallback((partial: Partial<LogFormData>) => {
     setFormData((prev) => ({ ...prev, ...partial }));
@@ -58,10 +113,15 @@ export function LogFormProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     setCurrentStep(1);
     setFormData(INITIAL_DATA);
-  }, []);
+    fadeAnim.setValue(1);
+    slideAnim.setValue(0);
+    animatingRef.current = false;
+  }, [fadeAnim, slideAnim]);
 
   return (
-    <LogFormContext.Provider value={{ currentStep, formData, setStep, updateData, reset }}>
+    <LogFormContext.Provider
+      value={{ currentStep, formData, setStep, updateData, reset, fadeAnim, slideAnim }}
+    >
       {children}
     </LogFormContext.Provider>
   );

@@ -57,7 +57,15 @@ export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="log" options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="log"
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+          gestureEnabled: true,
+          gestureDirection: 'vertical',
+        }}
+      />
       <Stack.Screen name="profile-setup" />
     </Stack>
   );

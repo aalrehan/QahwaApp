@@ -1,4 +1,4 @@
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Step1Setup } from '@/components/log-form/Step1Setup';
@@ -32,6 +32,21 @@ function StepRenderer() {
   }
 }
 
+function AnimatedStepContainer() {
+  const { fadeAnim, slideAnim } = useLogForm();
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        opacity: fadeAnim,
+        transform: [{ translateX: slideAnim }],
+      }}
+    >
+      <StepRenderer />
+    </Animated.View>
+  );
+}
+
 export default function NewLogScreen() {
   return (
     <LogFormProvider>
@@ -42,7 +57,7 @@ export default function NewLogScreen() {
         >
           <StepHeader />
           <View style={{ flex: 1 }}>
-            <StepRenderer />
+            <AnimatedStepContainer />
           </View>
           <StepFooter />
         </KeyboardAvoidingView>
