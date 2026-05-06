@@ -54,5 +54,11 @@ export default function AppLayout() {
     return <Redirect href="/(app)/profile-setup" />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="log" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="profile-setup" />
+    </Stack>
+  );
 }
