@@ -2,11 +2,12 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signOut, useSession } from '@/lib/auth';
+import { useProfile } from '@/lib/profile';
 import { theme } from '@/lib/theme';
 
 export default function WelcomeScreen() {
   const { user } = useSession();
-  const idShort = user?.id ? user.id.slice(0, 8) : '';
+  const { profile } = useProfile(user?.id);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -31,25 +32,26 @@ export default function WelcomeScreen() {
 
         <Text
           style={{
-            color: theme.colors.muted,
-            fontSize: 14,
-            fontFamily: theme.fonts.arabicBody.regular,
+            color: theme.colors.text,
+            fontSize: 18,
+            fontFamily: theme.fonts.arabicBody.medium,
             marginTop: 12,
             textAlign: 'center',
           }}
         >
-          {user?.email ?? ''}
+          {profile?.display_name_ar ?? ''}
         </Text>
 
         <Text
           style={{
-            color: theme.colors.dim,
-            fontSize: 11,
+            color: theme.colors.muted,
+            fontSize: 13,
             fontFamily: theme.fonts.arabicBody.regular,
-            marginTop: 8,
+            marginTop: 4,
+            textAlign: 'center',
           }}
         >
-          ID: {idShort}
+          {profile?.username ? `@${profile.username}` : ''}
         </Text>
 
         <View style={{ marginTop: 80 }}>
