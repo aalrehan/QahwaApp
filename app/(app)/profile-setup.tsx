@@ -200,7 +200,9 @@ export default function ProfileSetupScreen() {
               style={{
                 color: theme.colors.brown,
                 fontSize: 36,
+                lineHeight: 36,
                 fontFamily: theme.fonts.arabicDecorative.bold,
+                includeFontPadding: false,
               }}
             >
               قهوة
@@ -208,19 +210,22 @@ export default function ProfileSetupScreen() {
             <View
               style={{
                 width: 1,
-                height: 20,
+                height: 18,
                 backgroundColor: theme.colors.border,
-                marginHorizontal: 14,
-                opacity: 0.7,
+                marginHorizontal: 12,
+                opacity: 0.6,
                 alignSelf: 'center',
               }}
             />
             <Text
               style={{
                 color: theme.colors.brown,
-                fontSize: 16,
+                fontSize: 36,
+                lineHeight: 36,
                 fontFamily: theme.fonts.englishDisplay.italic,
-                letterSpacing: 3,
+                letterSpacing: 4,
+                includeFontPadding: false,
+                marginTop: -4,
               }}
             >
               QAHWA
