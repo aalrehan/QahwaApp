@@ -1,0 +1,562 @@
+================================================================================
+QAHWA (قهوة) — SESSION 2D: EMAIL OTP AUTHENTICATION
+Date: 2026-05-05
+Working directory: C:\Users\aalre\Projects\qahwa
+Repo: https://github.com/aalrehan/QahwaApp (private)
+Branch: main
+Test device: Samsung Galaxy S26 Ultra (via Expo Go)
+================================================================================
+
+CONTEXT
+--------------------------------------------------------------------------------
+Qahwa is an Arabic-first social coffee diary mobile app for Saudi specialty
+coffee enthusiasts. Prior sessions built:
+  - Session 2B: Foundation — Expo SDK 54, React Native 0.81.5, TypeScript
+    strict, Expo Router 6, NativeWind v4 + Tailwind v3, Supabase JS client,
+    AsyncStorage session adapter, brand mark home screen
+  - Session 2C: Custom fonts (Amiri-Bold for قهوة logo, CormorantGaramond-
+    Italic for QAHWA subtitle, Tajawal for body text, IBM Plex Sans Arabic
+    for headings), RTL armed via I18nManager.forceRTL
+
+At session 2D start: single home screen (app/index.tsx) showing قهوة +
+QAHWA + green Supabase connection indicator. No auth, no routing groups.
+
+GOAL
+--------------------------------------------------------------------------------
+Implement email OTP authentication end-to-end:
+  - Session router pattern (root index decides which group to enter)
+  - Protected /(auth)/ and /(app)/ Expo Router groups with redirect guards
+  - Email entry → 6-digit OTP → welcome screen flow
+  - 6-digit OTP boxes with auto-advance, auto-submit, backspace, paste
+  - 30-second resend countdown
+  - Full Arabic UI with Supabase error mapping
+  - Session persistence across Expo Go kills
+
+
+================================================================================
+NEW FILES CREATED
+================================================================================
+
+FILE: lib/auth.ts
+--------------------------------------------------------------------------------
+Central auth primitives. Two exports:
+
+(1) useSession() hook
+    - Calls supabase.auth.getSession() on mount for the initial value
+    - Subscribes to supabase.auth.onAuthStateChange for live updates
+    - Returns { session, user, loading }
+    - Cleans up subscription and ignores setState after unmount via a
+      `cancelled` boolean guard
+    - loading stays true until the initial getSession() resolves
+
+(2) signOut() helper
+    - Thin wrapper: return supabase.auth.signOut()
+    - Called directly from the welcome screen's sign-out button
+
+Why a separate lib/auth.ts:
+  Multiple screens need the session. Centralizing avoids duplicating the
+  Supabase subscription boilerplate and ensures all screens see the same
+  reactive state.
+
+Full file:
+  import type { Session, User } from '@supabase/supabase-js';
+  import { useEffect, useState } from 'react';
+  import { supabase } from '@/lib/supabase';
+
+  type SessionState = {
+    session: Session | null;
+    user: User | null;
+    loading: boolean;
+  };
+
+  export function useSession(): SessionState {
+    const [session, setSession] = useState<Session | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      let cancelled = false;
+      supabase.auth.getSession().then(({ data }) => {
+        if (cancelled) return;
+        setSession(data.session);
+        setLoading(false);
+      });
+      const { data: subscription } = supabase.auth.onAuthStateChange(
+        (_event, nextSession) => {
+          if (cancelled) return;
+          setSession(nextSession);
+          setLoading(false);
+        }
+      );
+      return () => {
+        cancelled = true;
+        subscription.subscription.unsubscribe();
+      };
+    }, []);
+
+    return { session, user: session?.user ?? null, loading };
+  }
+
+  export async function signOut() {
+    return supabase.auth.signOut();
+  }
+
+
+FILE: app/(auth)/_layout.tsx
+--------------------------------------------------------------------------------
+Guard for the unauthenticated group:
+  - Uses useSession()
+  - If loading: return null (root index.tsx shows the brand mark splash)
+  - If session exists: <Redirect href="/(app)" /> (already signed in)
+  - Otherwise: <Stack screenOptions={{ headerShown: false }} />
+
+
+FILE: app/(app)/_layout.tsx
+--------------------------------------------------------------------------------
+Guard for the authenticated group:
+  - Uses useSession()
+  - If loading: return null
+  - If no session: <Redirect href="/(auth)/login" /> (not signed in)
+  - Otherwise: <Stack screenOptions={{ headerShown: false }} />
+
+
+FILE: app/(auth)/login.tsx
+--------------------------------------------------------------------------------
+See full login screen spec below.
+
+
+FILE: app/(app)/index.tsx
+--------------------------------------------------------------------------------
+Placeholder welcome screen to prove auth works end-to-end:
+  - "أهلاً بك" — Amiri-Bold 48pt, theme.colors.brown, centered
+  - user.email — Tajawal-Regular 14pt, theme.colors.muted, marginTop 12
+  - "ID: " + first 8 chars of user.id — Tajawal-Regular 11pt,
+    theme.colors.dim, marginTop 8
+  - Sign-out button (marginTop 80):
+      borderWidth 1, borderColor theme.colors.error, borderRadius 12
+      padding 14, paddingHorizontal 32
+      "تسجيل الخروج" — Tajawal-Medium 14pt, theme.colors.error
+      onPress: calls signOut() from lib/auth.ts; onAuthStateChange fires
+      and Expo Router redirects to /(auth)/login automatically
+
+The user.id prefix (8 chars) was kept intentionally for dev verification
+— confirm the right user in the Supabase dashboard, remove later when
+not needed.
+
+Verified on device: shows "أهلاً بك", bonaef@gmail.com, ID: 3aa44c0f,
+red-bordered sign-out button.
+
+
+================================================================================
+FILE REWRITTEN: app/index.tsx (SESSION ROUTER)
+================================================================================
+
+Old behavior: static home screen showing connection status.
+New behavior: pure routing logic with a loading splash.
+
+Logic:
+  const { session, loading } = useSession();
+
+  if (loading) → show brand mark splash:
+    - قهوة in Amiri-Bold 96pt (same as old home screen)
+    - QAHWA in CormorantGaramond-Italic 18pt, letterSpacing 4
+    - "جارٍ التحميل..." in Tajawal-Regular 13pt (replaces status indicator)
+
+  session exists → <Redirect href="/(app)" />
+  no session    → <Redirect href="/(auth)/login" />
+
+Why this pattern:
+  Expo Router needs a real screen at the root. The session check is async
+  (AsyncStorage read), so we need something to show during the ~200ms gap.
+  The brand mark splash makes the loading state invisible to the user —
+  they see the same visual whether it's a cold start or a fast redirect.
+
+The Supabase connection badge was removed here. Its job was verifying
+the Supabase connection during early development. That smoke test is now
+redundant — auth itself proves the connection is working.
+
+
+================================================================================
+LOGIN SCREEN — FULL SPEC (app/(auth)/login.tsx)
+================================================================================
+
+STATE MACHINE: 'email' | 'otp' | 'success'
+
+LAYOUT STRUCTURE (outermost to innermost):
+  SafeAreaView (flex:1, backgroundColor: theme.colors.bg)
+    KeyboardAvoidingView (behavior: 'padding' iOS / 'height' Android)
+      ScrollView (flexGrow:1, paddingHorizontal:32, keyboardShouldPersistTaps)
+        Logo block (alignItems:center, marginTop:80)
+        Content block (alignItems:center, width:'100%', marginTop:60)
+          [EmailStep | OtpStep | SuccessStep]
+
+SafeAreaView: handles notch/punch-hole on Galaxy S26 Ultra.
+KeyboardAvoidingView: OTP boxes stay visible above keyboard.
+ScrollView: allows content to scroll if keyboard covers it.
+alignItems:'center' + width:'100%' on content block: all children
+  center horizontally (headings, input, button, errors, links).
+
+--- LOGO BLOCK (same in all states) ---
+
+  "قهوة" — Amiri-Bold, fontSize 52, color theme.colors.brown,
+            textAlign:'center', width:'100%'
+  "QAHWA" — CormorantGaramond-Italic, fontSize 14,
+             letterSpacing 4, marginTop 4, textAlign:'center', width:'100%'
+
+Note: fontSize 52 (not 96 like the splash) — smaller on the login screen
+to leave room for the form below.
+
+--- STATE 'email' (EmailStep component) ---
+
+  Heading: "سجّل دخولك"
+    IBM Plex Sans Arabic Bold, 22pt, theme.colors.brown, textAlign:'center'
+
+  Subtext: "سنرسل لك رمزاً مكوناً من 6 أرقام"
+    Tajawal-Regular, 13pt, theme.colors.muted, marginTop:6, textAlign:'center'
+
+  Label: "البريد الإلكتروني"
+    Tajawal-Medium, 12pt, theme.colors.muted, marginBottom:8, textAlign:'center'
+
+  TextInput:
+    - keyboardType="email-address"
+    - autoCapitalize="none", autoCorrect={false}
+    - placeholder="name@example.com", placeholderTextColor: theme.colors.dim
+    - backgroundColor: theme.colors.surface
+    - borderWidth:1, borderColor: theme.colors.border, borderRadius:12
+    - padding:14, fontSize:15, fontFamily: Tajawal-Regular
+    - color: theme.colors.text, textAlign:'center'
+    - Container: width:'100%', maxWidth:360, alignSelf:'center'
+
+  Error banner (conditional):
+    - backgroundColor: 'rgba(179, 58, 58, 0.1)', padding:10, borderRadius:8
+    - width:'100%', maxWidth:360, alignSelf:'center', marginTop:12
+    - Text: Tajawal-Regular 12pt, theme.colors.error, textAlign:'center'
+    - Error mapping:
+        'invalid' + 'email'          → "البريد الإلكتروني غير صحيح"
+        'rate'/'too many'/'limit'    → "حاول مرة أخرى بعد قليل"
+        'network'/'fetch'            → "تحقق من اتصالك بالإنترنت"
+        default                      → raw error.message
+
+  CTA Button "أرسل الرمز":
+    - Pressable wrapper: width:'100%', maxWidth:360, alignSelf:'center',
+      marginTop:24. disabled prop tied to sendDisabled.
+    - LinearGradient (expo-linear-gradient):
+        colors: [theme.colors.orange, theme.colors.brown]
+        start: {x:0, y:0}, end: {x:1, y:1}
+        padding:16, borderRadius:12
+        opacity: sendDisabled ? 0.5 : 1
+    - Text: "أرسل الرمز" / "جارٍ الإرسال..." (while loading)
+        Tajawal-Bold 15pt, theme.colors.bg (cream), textAlign:'center'
+    - sendDisabled = email empty OR invalid format OR loading
+
+  Email validation:
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/ regex checked inline on every keypress.
+    Button stays at 50% opacity until a valid email is typed.
+
+--- STATE 'otp' (OtpStep component) ---
+
+  Heading: "تحقق من بريدك"
+    IBM Plex Sans Arabic Bold, 22pt, theme.colors.brown, textAlign:'center'
+
+  Subtext line 1: "أرسلنا الرمز إلى"
+    Tajawal-Regular, 13pt, theme.colors.muted, marginTop:6, textAlign:'center'
+
+  Subtext line 2: truncated email (max 28 chars, "..." if longer)
+    Tajawal-Medium, 13pt, theme.colors.brown, marginTop:2, textAlign:'center'
+
+  6 OTP digit boxes (marginTop:40):
+    Container: flexDirection:'row', direction:'ltr', justifyContent:'center',
+               gap:8
+
+    direction:'ltr' is critical in an RTL app. Without it, the row
+    renders right-to-left (box 5 on the left, box 0 on the right), which
+    is confusing for numeric codes. Saudi banking apps (Absher, STC Pay)
+    all show numeric OTPs left-to-right.
+
+    Per box:
+      width:46, height:60, borderRadius:12, textAlign:'center'
+      fontSize:24, fontFamily: IBM Plex Sans Arabic SemiBold
+      color: theme.colors.brown
+      keyboardType="number-pad", maxLength:1, selectTextOnFocus
+      borderWidth:2
+
+    Border color states:
+      Empty + not active: borderColor: theme.colors.borderSoft
+      Active (focused):   borderColor: theme.colors.orange
+      Filled:             borderColor: theme.colors.border
+                          backgroundColor: theme.colors.surface2
+
+  OTP box behaviors:
+    (1) Auto-advance: digit entered → focus next box (index + 1)
+    (2) Backspace on empty box → clear previous box, focus it
+    (3) All 6 filled → auto-submit (no verify button — snappier UX)
+    (4) Paste detection: if value.length > 1, distribute chars
+        across boxes 0–5 (up to OTP_LENGTH), auto-submit if 6 filled
+    (5) editable={false} while verification in flight (prevents
+        double-submission)
+
+  OTP_LENGTH constant (= 6):
+    Drives all of: number of boxes, refs array size, paste-distribute
+    length, auto-submit condition, advance-guard index. Changing OTP
+    length in future = change one number.
+
+  Error banner (same styling as email error):
+    Mapping:
+      'expired'                → "انتهت صلاحية الرمز"
+      'rate'/'too many'        → "محاولات كثيرة، حاول لاحقاً"
+      'invalid'/'token'        → "الرمز غير صحيح"
+      'network'/'fetch'        → "تحقق من اتصالك بالإنترنت"
+      default                  → raw error.message
+
+  Resend countdown (30 seconds):
+    During countdown: "إعادة الإرسال خلال 0:NN" (zero-padded seconds)
+      Tajawal-Regular 13pt, theme.colors.muted, NOT pressable
+    After countdown: "لم يصلك الرمز؟ أعد الإرسال"
+      Tajawal-Medium 13pt, theme.colors.orange, pressable
+      → calls signInWithOtp again, resets countdown to 30, clears boxes
+
+  Resend success toast:
+    "تم إرسال رمز جديد" — green tint banner (rgba 45,122,62 12%),
+    Tajawal-Medium 12pt, theme.colors.success
+    Auto-dismisses after 2 seconds
+
+  Change email link: "تغيير البريد الإلكتروني"
+    Tajawal-Regular 12pt, theme.colors.muted, pressable
+    Returns to 'email' state. EMAIL IS PRESERVED (pre-filled) so
+    user doesn't retype from scratch.
+
+--- STATE 'success' ---
+
+  Shown for ~600ms before onAuthStateChange fires and router redirects.
+
+  "✓" — fontSize:80, color: theme.colors.success, textAlign:'center'
+  "تم!" — Amiri-Bold 32pt, theme.colors.brown, marginTop:16, textAlign:'center'
+
+  After 600ms: router.replace('/(app)')
+
+
+================================================================================
+SUPABASE AUTH CONFIGURATION NOTES
+================================================================================
+
+Method used:
+  Send:   supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+  Verify: supabase.auth.verifyOtp({ email, token, type: 'email' })
+
+OTP length:
+  Supabase default is 6 digits. We went through several iterations:
+  - Initially planned 4 digits (Saudi banking convention)
+  - Supabase dashboard setting was temporarily on default (6)
+  - Temporarily bumped UI to 8 boxes to match a misconfigured template
+  - Eventually locked in at 6 digits (confirmed working)
+
+Email template issue encountered:
+  Supabase's default "Magic Link" template sends {{ .ConfirmationURL }}
+  which generates a clickable link, NOT a numeric token. Fix applied
+  manually in the Supabase dashboard:
+    Authentication → Email Templates → Magic Link
+    Replace {{ .ConfirmationURL }} with {{ .Token }} in the email body
+  After this fix, emails deliver a 6-digit numeric code as expected.
+
+OTP box keyboardType:
+  "number-pad" — tokens confirmed to be numeric only. If alphanumeric
+  tokens appear in future, switch to "default" + autoCapitalize="characters".
+
+
+================================================================================
+PACKAGE ADDED THIS SESSION
+================================================================================
+
+expo-linear-gradient (~15.0.7)
+  - Installed via: npx expo install expo-linear-gradient
+  - Used for the orange→brown diagonal gradient on the CTA button
+  - SDK 54 compatible (installed by expo CLI automatically at right version)
+
+
+================================================================================
+ISSUES ENCOUNTERED AND FIXES
+================================================================================
+
+ISSUE: TypeScript errors on route strings (/(app)/, /(auth)/login)
+  Root cause: Expo Router's typed-routes file (.expo/types/router.d.ts)
+  only knows about routes that have been seen by the dev server. New
+  /(auth) and /(app) groups weren't registered yet.
+  Fix: ran `npx expo start --clear` to trigger route type regeneration.
+  After that, tsc --noEmit passed clean.
+
+  Additional detail: used /(app)/ (trailing slash) initially — also
+  invalid. Correct form is /(app) without trailing slash.
+
+ISSUE: writingDirection on View caused TS error
+  User spec asked for both direction:'ltr' AND writingDirection:'ltr' on
+  the OTP boxes row container.
+  Root cause: writingDirection is a TextStyle property, not ViewStyle.
+  It cannot be applied to a View in React Native's type system.
+  Fix: removed writingDirection from the View. direction:'ltr' alone is
+  sufficient — it overrides the parent's RTL layout for children.
+  The per-box textAlign:'center' handles digit rendering inside each box.
+
+ISSUE: OTP template sending magic link instead of code
+  Root cause: Supabase email template was using {{ .ConfirmationURL }}
+  (a full URL) instead of {{ .Token }} (the raw numeric code).
+  Fix: user manually updated template in Supabase dashboard.
+
+ISSUE: OTP box count mismatch (8 chars received, 6 boxes shown)
+  Root cause: {{ .Token }} in some Supabase configurations generates an
+  8-character token, not 6. Temporarily bumped UI to 8 boxes.
+  Final fix: user configured Supabase OTP length to 6 in the dashboard
+  (Authentication → Email → OTP Length → 6). UI reverted to 6 boxes.
+
+ISSUE: Login screen content left-aligned in OTP state
+  Root cause: Text elements had textAlign:'right' (appropriate for RTL
+  content) but the block-level containers weren't centered, so they
+  stuck to the screen edge.
+  Fix: added alignItems:'center', width:'100%' to both EmailStep and
+  OtpStep root Views. Changed all textAlign values to 'center'.
+  Critical distinction: Arabic text still flows RTL WITHIN each Text
+  element (correct and intentional). The fix only affects WHERE the
+  blocks sit horizontally on the screen.
+
+ISSUE: OTP boxes rendering right-to-left (box 5 on left, box 0 on right)
+  Root cause: the whole app is forced RTL via I18nManager.forceRTL.
+  flexDirection:'row' in RTL lays out children right-to-left.
+  Fix: added direction:'ltr' to the OTP boxes row container.
+  This overrides RTL for that specific subtree. Numeric codes should
+  always be entered left-to-right regardless of text direction.
+  (Saudi banking convention: Absher, Tawakkalna, STC Pay all use LTR
+  for numeric OTP entry.)
+
+
+================================================================================
+VERIFICATION RESULTS (Samsung Galaxy S26 Ultra)
+================================================================================
+
+All steps confirmed working on device:
+
+✅ Brand mark splash "جارٍ التحميل..." shown briefly on cold start
+✅ Redirect to /(auth)/login when no session
+✅ Login screen fully centered — logo, heading, subtext, input, button
+✅ Email input accepts address, button activates on valid format
+✅ Button at 50% opacity when email invalid or empty (disabled state)
+✅ "أرسل الرمز" tap → Supabase sends 6-digit code to inbox
+✅ OTP screen shows 6 boxes, LTR order (left = first digit)
+✅ Auto-advance: typing a digit moves focus to next box rightward
+✅ Active box highlighted with theme.colors.orange border
+✅ Filled box: cream tint background, border color change
+✅ 30-second resend countdown appears, becomes tappable after expiry
+✅ 6th digit entered → auto-submits, no extra button press needed
+✅ Correct 6-digit code → ✓ success state → routes to /(app)
+✅ Welcome screen: "أهلاً بك", user email, 8-char ID, sign-out button
+✅ Sign-out → returns to /(auth)/login
+✅ Killed Expo Go, reopened → skipped login (session persisted via
+   AsyncStorage)
+✅ User visible in Supabase dashboard: Authentication → Users
+
+
+================================================================================
+GIT HISTORY (after this session)
+================================================================================
+
+  8c1b7bb  Login: center content blocks, LTR OTP row, OTP_LENGTH constant
+  30b1bef  Email OTP auth: session router, login screen, protected /(app)/ group
+  62e3b88  Custom Arabic + English typography, theme tokens, RTL armed
+  734156a  docs: replace scaffold README with project-specific one
+  ab53a59  docs: extend session notes with git init + GitHub push steps
+  199aca2  Foundation: Expo + TypeScript + NativeWind + Supabase client +
+           brand mark + connection smoke test.
+
+All pushed to https://github.com/aalrehan/QahwaApp (private, main branch).
+
+
+================================================================================
+CURRENT FILE TREE (relevant files)
+================================================================================
+
+  app/
+  ├── _layout.tsx           fonts + RTL setup (UNCHANGED from Session 2C)
+  ├── index.tsx             session router (REWRITTEN this session)
+  ├── (auth)/
+  │   ├── _layout.tsx       redirect guard: session exists → /(app)
+  │   └── login.tsx         email OTP login screen (3-state machine)
+  └── (app)/
+      ├── _layout.tsx       redirect guard: no session → /(auth)/login
+      └── index.tsx         placeholder welcome screen
+  lib/
+  ├── supabase.ts           unchanged
+  ├── theme.ts              unchanged
+  └── auth.ts               NEW: useSession() + signOut()
+
+
+================================================================================
+WHAT THIS UNLOCKS (next sessions)
+================================================================================
+
+Auth is complete and verified. The /(app)/ group is now protected.
+Everything built from here goes inside /(app)/.
+
+Immediate next steps:
+
+(1) PROFILE SETUP SCREEN (app/(app)/profile-setup.tsx)
+    First time a new user signs in, they should be prompted to set a
+    display name and optionally a profile photo before seeing the feed.
+    Could check if profile row exists in Supabase profiles table and
+    redirect accordingly.
+
+(2) HOME FEED (app/(app)/index.tsx — replace placeholder)
+    The real feed: coffee diary entries, badge progress, etc.
+    The 12 badges already exist in Supabase from Session 2B.
+
+(3) MIRROR theme.colors INTO tailwind.config.js
+    Enough screens now exist that utility classes (text-brown, bg-surface,
+    border-border) would reduce boilerplate. Could do this any time.
+
+(4) SWAP AsyncStorage FOR SecureStore ADAPTER
+    Session tokens currently stored in AsyncStorage (unencrypted).
+    expo-secure-store is already installed. Before real users sign up,
+    swap to a SecureStore-backed session adapter so tokens are encrypted
+    at rest on the device.
+
+(5) OFL.txt IN assets/fonts/
+    SIL Open Font License compliance for App Store submission. Each of
+    the 4 font families (IBM Plex Sans Arabic, Tajawal, Amiri, Cormorant
+    Garamond) ships with OFL.txt in its Google Fonts ZIP. Add one copy
+    to assets/fonts/ before submitting.
+
+
+================================================================================
+TECHNICAL GOTCHAS TO REMEMBER
+================================================================================
+
+(1) Expo Router typed routes regenerate on `npx expo start --clear`.
+    If you see TypeScript errors about route strings (e.g., /(app) not
+    assignable), it's because .expo/types/router.d.ts is stale. Start
+    the dev server with --clear to fix it.
+
+(2) direction:'ltr' on a View overrides RTL for its children's layout
+    order. writingDirection is TextStyle only — it doesn't compile on
+    View. Don't add it to View containers.
+
+(3) When loading is true in useSession(), both layout files return null.
+    The root index.tsx shows the brand mark splash during this window.
+    Do NOT add loading spinners to the layout files — they'll never be
+    seen (root index.tsx covers that visual gap).
+
+(4) OTP_LENGTH is a constant in login.tsx. Changing OTP length in
+    Supabase = change OTP_LENGTH and copy text only. All other logic
+    (loop, refs, paste, auto-submit) derives from it automatically.
+
+(5) Supabase email template must use {{ .Token }} NOT {{ .ConfirmationURL }}
+    to send a numeric OTP code. If users report receiving a link instead
+    of a code, check the dashboard template.
+
+(6) signInWithOtp with shouldCreateUser:true creates the user on first
+    sign-in. If you want an invite-only flow later, set shouldCreateUser
+    to false and pre-create users in the dashboard.
+
+(7) The 'success' state (✓ screen) is shown for 600ms BEFORE router
+    redirects. This is intentional — gives a brief visual confirmation.
+    The actual navigation is triggered by onAuthStateChange firing in
+    useSession(), not a direct router.push call.
+
+================================================================================
+END OF SESSION 2D NOTES
+================================================================================

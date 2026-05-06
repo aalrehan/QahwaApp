@@ -1,0 +1,737 @@
+================================================================================
+QAHWA (قهوة) — SESSION 2C: CUSTOM ARABIC FONTS + RTL LAYOUT
+Date: 2026-05-04
+Working directory: C:\Users\aalre\Projects\qahwa
+Repo: https://github.com/aalrehan/QahwaApp (private)
+Branch: main
+Test device: Samsung Galaxy S26 Ultra (via Expo Go)
+================================================================================
+
+CONTEXT
+--------------------------------------------------------------------------------
+Qahwa is an Arabic-first social coffee diary mobile app for Saudi specialty
+coffee enthusiasts. The foundation was built in prior sessions: Expo SDK 54,
+React Native 0.81, TypeScript, Expo Router 6, NativeWind v4, Supabase JS
+client, and a single home screen that renders the قهوة brand mark with a
+Supabase connection smoke test. As of session start: brand mark was rendered
+in fontWeight 700 placeholder, no custom fonts loaded, no RTL configuration.
+
+GOAL
+--------------------------------------------------------------------------------
+Move from "placeholder bold sans" to actual Naskh calligraphy on the brand
+mark. Establish a proper typography system supporting four roles:
+  - Arabic display      (headings)
+  - Arabic body         (paragraphs, UI text)
+  - Arabic decorative   (logo only — Naskh script)
+  - English display     (italic serif for ornament)
+
+Arm the app for right-to-left layout so all future UI assumes RTL by default.
+
+WORKFLOW
+--------------------------------------------------------------------------------
+Each step followed an explain → approve → execute → summarize cadence.
+Decisions were surfaced in advance with rationale; user approved before any
+code was written. Total of 9 ordered steps.
+
+
+================================================================================
+STEP 1 — FONT DOWNLOAD RECIPE (MANUAL, USER PERFORMED)
+================================================================================
+
+Selected 4 typefaces from Google Fonts (all SIL Open Font License — free for
+commercial use, license text must accompany distribution).
+
+(1) IBM PLEX SANS ARABIC — Arabic headings/display
+    URL: https://fonts.google.com/specimen/IBM+Plex+Sans+Arabic
+    Weights downloaded: Regular (400), Medium (500), SemiBold (600), Bold (700)
+    Skipped: Thin, ExtraLight, Light — too thin for mobile screens
+    Why these 4: Display fonts need a range so headings, sub-headings, and
+    emphasized text can sit at different visual weights without changing
+    typeface. 4 weights covers ~95% of mobile UI cases.
+
+(2) TAJAWAL — Arabic body text
+    URL: https://fonts.google.com/specimen/Tajawal
+    Weights downloaded: Regular (400), Medium (500), Bold (700)
+    Skipped: ExtraLight, Light, ExtraBold, Black
+    Why these 3: Body fonts need fewer variants — Regular for paragraphs,
+    Medium for slight emphasis (form labels, button text), Bold for strong
+    emphasis (errors, links). More would be bundle bloat.
+
+(3) AMIRI — decorative Naskh script (logo only)
+    URL: https://fonts.google.com/specimen/Amiri
+    Weights downloaded: Regular (400), Bold (700)
+    Skipped: Italic, BoldItalic
+    Why these 2: Use case is the قهوة logo (Bold) plus decorative reserve
+    (Regular). Italic is uncommon in Arabic Naskh script.
+
+(4) CORMORANT GARAMOND — italic English serif
+    URL: https://fonts.google.com/specimen/Cormorant+Garamond
+    Style downloaded: Italic only (a single .ttf)
+    Why just 1: English is secondary in this app. The italic variant is the
+    only one needed for the QAHWA subtitle and any future English ornament.
+
+FINAL CONTENTS OF assets/fonts/:
+  IBMPlexSansArabic-Regular.ttf   226 KB
+  IBMPlexSansArabic-Medium.ttf    232 KB
+  IBMPlexSansArabic-SemiBold.ttf  234 KB
+  IBMPlexSansArabic-Bold.ttf      236 KB
+  Tajawal-Regular.ttf              56 KB
+  Tajawal-Medium.ttf               57 KB
+  Tajawal-Bold.ttf                 57 KB
+  Amiri-Regular.ttf               421 KB
+  Amiri-Bold.ttf                  404 KB
+  CormorantGaramond-Italic.ttf    407 KB
+                                 ─────
+                                ~2.33 MB total (10 files)
+
+LICENSING NOTE:
+  All 4 fonts are SIL OFL. The license requires bundling a copy of OFL.txt
+  with the app at distribution. Each Google Fonts ZIP includes one. Plan:
+  add OFL.txt to assets/fonts/ before app-store submission.
+
+LESSONS WORTH KEEPING:
+  - Filename casing matters absolutely. expo-font matches files by exact
+    string key. One-character typos in case (e.g., `IBMplexSansArabic-Bold`)
+    fail silently — font falls back to system, no error thrown.
+  - Tajawal is tiny per file (~56 KB) because it's single-script optimized.
+  - Amiri files are large (~400 KB) because Naskh ships extensive
+    contextual ligatures (the script connects letters in dozens of ways
+    depending on position; each glyph variant is stored).
+  - 2.3 MB for 10 fonts is reasonable for typography this central to brand
+    identity. For comparison: a single React Native app's JS bundle is
+    typically 5–15 MB.
+
+
+================================================================================
+STEP 2 — VERIFY FILE PLACEMENT
+================================================================================
+
+Listed assets/fonts/ to confirm filenames matched the expected list. All 10
+files present, exact case match, total size 2.33 MB. No OFL.txt yet (added
+to next-session checklist).
+
+The verification step exists specifically because expo-font failures are
+silent. Catching a typo here saves 30 minutes of "the font isn't loading,
+why?" debugging later.
+
+
+================================================================================
+STEP 3 — LOAD FONTS VIA expo-font + SPLASH SCREEN GATING
+================================================================================
+
+FILE MODIFIED: app/_layout.tsx
+
+BEFORE:
+  import '../global.css';
+  import { Stack } from 'expo-router';
+  import { StatusBar } from 'expo-status-bar';
+  import 'react-native-reanimated';
+
+  export default function RootLayout() {
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
+
+AFTER (final state, including the RTL block from Step 7):
+  import '../global.css';
+
+  import { useFonts } from 'expo-font';
+  import { Stack } from 'expo-router';
+  import * as SplashScreen from 'expo-splash-screen';
+  import { StatusBar } from 'expo-status-bar';
+  import { useEffect } from 'react';
+  import { I18nManager } from 'react-native';
+  import 'react-native-reanimated';
+
+  SplashScreen.preventAutoHideAsync();
+
+  I18nManager.allowRTL(true);
+  if (!I18nManager.isRTL) {
+    I18nManager.forceRTL(true);
+  }
+
+  export default function RootLayout() {
+    const [fontsLoaded, fontError] = useFonts({
+      'IBMPlexSansArabic-Regular':  require('../assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+      'IBMPlexSansArabic-Medium':   require('../assets/fonts/IBMPlexSansArabic-Medium.ttf'),
+      'IBMPlexSansArabic-SemiBold': require('../assets/fonts/IBMPlexSansArabic-SemiBold.ttf'),
+      'IBMPlexSansArabic-Bold':     require('../assets/fonts/IBMPlexSansArabic-Bold.ttf'),
+      'Tajawal-Regular':            require('../assets/fonts/Tajawal-Regular.ttf'),
+      'Tajawal-Medium':             require('../assets/fonts/Tajawal-Medium.ttf'),
+      'Tajawal-Bold':               require('../assets/fonts/Tajawal-Bold.ttf'),
+      'Amiri-Regular':              require('../assets/fonts/Amiri-Regular.ttf'),
+      'Amiri-Bold':                 require('../assets/fonts/Amiri-Bold.ttf'),
+      'CormorantGaramond-Italic':   require('../assets/fonts/CormorantGaramond-Italic.ttf'),
+    });
+
+    useEffect(() => {
+      if (fontsLoaded || fontError) {
+        SplashScreen.hideAsync();
+      }
+    }, [fontsLoaded, fontError]);
+
+    if (!fontsLoaded && !fontError) {
+      return null;
+    }
+
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
+
+WHY EACH PIECE:
+
+(1) `SplashScreen.preventAutoHideAsync()` AT TOP-LEVEL (not in a hook)
+    Without this, the native splash auto-hides as soon as React first
+    renders — which happens BEFORE fonts finish loading. Result: user sees
+    splash → flash of unstyled (system font) screen → flicker as fonts
+    swap in. Calling preventAutoHide BEFORE React mounts (via top-level
+    side effect) keeps the splash up until we explicitly hide it.
+
+(2) `useFonts({ ... })` HOOK
+    Returns [fontsLoaded, fontError]. fontsLoaded becomes true when ALL
+    fonts in the dictionary have loaded; fontError becomes truthy if any
+    fail. The string keys (e.g., 'IBMPlexSansArabic-Bold') are the names
+    used as `fontFamily` values in components. Convention: match the
+    filename (without .ttf extension).
+
+(3) `useEffect` THAT HIDES SPLASH
+    Hides on either success or error. If a font fails, we'd rather show
+    the app with system fallback than a frozen splash forever.
+
+(4) `if (!fontsLoaded && !fontError) return null;`
+    Render nothing while loading. Native splash is still visible during
+    this period, so the user sees the splash, not a blank screen.
+
+PACKAGES USED (already installed by Expo scaffold, no new installs needed):
+  - expo-font          ~14.0.11
+  - expo-splash-screen ~31.0.13
+  - react-native       0.81.5 (provides I18nManager)
+
+ERROR-HANDLING PHILOSOPHY:
+  Font load failures don't crash the app — they fall back to system fonts.
+  Reasoning: a font failure shouldn't brick a fully-working app. Worst
+  case: brand looks generic. Better than worst case: app is unusable.
+
+STARTUP COST:
+  Loading 10 fonts adds ~100–300ms to cold start. Could lazy-load lesser
+  used variants (Amiri Regular, IBM Plex SemiBold) to shave this, but the
+  complexity isn't worth it for ~10 fonts at ~2.3 MB total. Simple > clever.
+
+
+================================================================================
+STEP 4 — RESTRUCTURE lib/theme.ts FOR FONT WEIGHT VARIANTS
+================================================================================
+
+FILE MODIFIED: lib/theme.ts
+
+BEFORE (the `fonts` object):
+  fonts: {
+    arabicDisplay: 'IBMPlexSansArabic',
+    arabicBody: 'Tajawal',
+    arabicDecorative: 'Amiri',
+    englishDisplay: 'CormorantGaramond',
+  }
+
+PROBLEM WITH THE BEFORE:
+  Each value was a "family name" string with no weight specifier. But
+  expo-font knows about 'IBMPlexSansArabic-Bold' as a key, not
+  'IBMPlexSansArabic'. Setting fontFamily to the bare family name would
+  silently fall back to system font. The before structure was effectively
+  unusable.
+
+AFTER:
+  fonts: {
+    arabicDisplay: {
+      regular:  'IBMPlexSansArabic-Regular',
+      medium:   'IBMPlexSansArabic-Medium',
+      semibold: 'IBMPlexSansArabic-SemiBold',
+      bold:     'IBMPlexSansArabic-Bold',
+    },
+    arabicBody: {
+      regular: 'Tajawal-Regular',
+      medium:  'Tajawal-Medium',
+      bold:    'Tajawal-Bold',
+    },
+    arabicDecorative: {
+      regular: 'Amiri-Regular',
+      bold:    'Amiri-Bold',
+    },
+    englishDisplay: {
+      italic: 'CormorantGaramond-Italic',
+    },
+  }
+
+WHY THIS SHAPE:
+  - Each leaf string matches a key in useFonts() exactly. So
+    `<Text style={{ fontFamily: theme.fonts.arabicDisplay.bold }}>` works.
+  - Nested objects give autocomplete on weights. Type
+    `theme.fonts.arabicDisplay.` and editor pops up
+    regular | medium | semibold | bold.
+  - Per-family weight set matches what was downloaded:
+      arabicDisplay → 4 weights (4 IBM Plex files)
+      arabicBody → 3 weights (3 Tajawal files)
+      arabicDecorative → 2 weights (2 Amiri files)
+      englishDisplay → 1 style (italic-only Cormorant)
+  - `as const` preserved at the bottom — keeps literal-string typing for
+    autocomplete on the values.
+
+NAMING CHOICE:
+  Used `semibold` (lowercase, one word) — consistent with Tailwind's
+  `font-semibold` and CSS `font-weight: 600` conventions. Alternative
+  was `semiBold` (camelCase JS naming).
+
+IMPACT ON EXISTING CODE:
+  Zero usages of `theme.fonts.*` in the app prior to this step, so
+  restructure was purely additive — nothing broke.
+
+
+================================================================================
+STEP 5 — ADD success/error COLORS TO theme
+================================================================================
+
+FILE MODIFIED: lib/theme.ts
+
+CHANGE:
+  Added two entries to the `colors` object:
+    success: '#2D7A3E'   (green — for "connected" state)
+    error:   '#B33A3A'   (red — for "connection failed" state)
+
+  Inserted at the end of the colors object, after `dim`. Did not
+  alphabetize — the existing order is semantic (surface → border → brand →
+  text → muted), so appending status colors at the end fit naturally.
+
+FILE MODIFIED: app/index.tsx
+
+CHANGES:
+  Replaced two hardcoded hex values:
+    color: '#2D7A3E'  →  color: theme.colors.success
+    color: '#B33A3A'  →  color: theme.colors.error
+
+WHY THIS MATTERS:
+  These colors will recur across the app — auth errors, save success
+  toasts, RLS denial messages, network failure indicators. Pulling them
+  to the theme means changing the green once changes it everywhere later.
+
+
+================================================================================
+STEP 6 — UPGRADE app/index.tsx WITH REAL FONTS
+================================================================================
+
+FILE MODIFIED: app/index.tsx
+
+TYPOGRAPHY ASSIGNMENTS:
+
+(1) Brand mark "قهوة"
+    Before: fontWeight: '700'
+    After:  fontFamily: theme.fonts.arabicDecorative.bold   (Amiri-Bold)
+    Removed `fontWeight: '700'` because the weight is baked into the file.
+
+    KEY POINT: Setting both `fontFamily: 'Something-Bold'` AND
+    `fontWeight: '700'` in React Native can cause Android to ATTEMPT to
+    synthesize an even-bolder version on top of the already-bold font.
+    Result: weirdly chunky letters. Best practice: with custom fonts,
+    use fontFamily ONLY. Let the file's intrinsic weight speak.
+
+(2) Subtitle "QAHWA"
+    Before: fontStyle: 'italic'
+    After:  fontFamily: theme.fonts.englishDisplay.italic
+            (CormorantGaramond-Italic)
+    Removed `fontStyle: 'italic'` for the same reason. The Cormorant file
+    IS the italic version. Doubling the slant produces an exaggerated,
+    almost-handwritten effect that wasn't desired.
+
+(3) Status indicator (all 3 states: Connecting / connected / failed)
+    Added: fontFamily: theme.fonts.arabicBody.regular   (Tajawal-Regular)
+
+CHOICE EXPLAINED:
+  Tajawal handles both Arabic and Latin scripts (full Latin coverage), so
+  using one font family for all status states keeps the visual cohesive.
+  The alternative was using Cormorant Italic for the English status text
+  — but switching faces mid-line for small status copy felt scattered.
+  One family across the whole UI is cleaner.
+
+FINAL TYPOGRAPHY ON HOME SCREEN:
+  قهوة   → Amiri-Bold @ 96pt
+  QAHWA  → CormorantGaramond-Italic @ 18pt, letterSpacing 4
+  Status → Tajawal-Regular @ 13pt
+
+
+================================================================================
+STEP 7 — RTL LAYOUT (DECISION POINT)
+================================================================================
+
+This was the deliberation step. Discussed implications before applying any
+code so the choice was made with full context.
+
+WHAT I18nManager.forceRTL(true) DOES:
+
+(a) FLIPS LAYOUT PRIMITIVES
+    - flexDirection: 'row' lays out children right-to-left (first child
+      visually rightmost)
+    - marginStart / paddingStart / marginEnd / paddingEnd swap meaning
+    - marginLeft / paddingLeft DO NOT FLIP — they always mean physical
+      left. Major footgun: code mixing logical and physical margins
+      breaks asymmetrically in RTL.
+
+(b) FLIPS TEXT ALIGNMENT
+    - textAlign: 'left' renders right-aligned in RTL
+    - textAlign: 'right' renders left-aligned in RTL
+    - textAlign: 'auto' uses the text's intrinsic direction (Arabic right,
+      Latin left) — usually what you want for mixed content
+
+(c) FLIPS NAVIGATION CONVENTIONS
+    - Back arrows in headers point right (← becomes →)
+    - Swipe-to-go-back gesture starts from the right edge of the screen
+
+(d) ANIMATIONS DO NOT FLIP
+    - transform: [{ translateX: 50 }] always means "physically right by
+      50px," regardless of RTL. Animations must be updated manually
+      (often: multiply translateX by -1 if RTL is active).
+
+WHY IT REQUIRES A FULL APP CLOSE + REOPEN:
+  forceRTL writes to the native side (Android's WritableNativeMap, iOS's
+  RCTI18nUtil). These values are READ ONCE AT APP STARTUP when React
+  Native sets up its layout engine. JS hot-reload doesn't restart the
+  native side, so the flag flip doesn't apply until a real cold start.
+
+  In Expo Go: tapping "Reload" from the dev menu is NOT enough. The user
+  must:
+    1. Swipe Expo Go away from the recent-apps drawer
+    2. Reopen Expo Go from the home screen
+    3. Re-scan QR or pick the project from "Recent apps" in Expo Go
+
+  React Native exposes I18nManager.isRTL as a boolean indicating whether
+  the cold start has applied the flag yet — useful for "are we actually
+  RTL now?" checks.
+
+POLICIES CONSIDERED:
+  Option 1: Force RTL always (regardless of device locale)
+  Option 2: Force RTL on first boot, persist a flag, never re-toggle
+  Option 3: Sync to device locale via expo-localization
+
+  Chose Option 1 for Qahwa specifically: this is an Arabic-first product.
+  RTL is a product decision, not a localization preference. Saudi users
+  with English-set phones still get Arabic-first layout because that's
+  what the product is.
+
+WHAT BREAKS AT THIS STEP (in the home screen specifically):
+  Almost nothing — the home screen is centered single-column. The Arabic
+  text was already right-to-left intrinsically; the centered "QAHWA" and
+  status text don't depend on layout direction. Any visible RTL changes
+  will surface later when we add rows of icons, navigation headers, swipe
+  gestures, etc.
+
+CODE WRITTEN (added to app/_layout.tsx):
+  import { I18nManager } from 'react-native';
+  ...
+  I18nManager.allowRTL(true);
+  if (!I18nManager.isRTL) {
+    I18nManager.forceRTL(true);
+  }
+
+LINE-BY-LINE EXPLANATION:
+  - allowRTL(true): On iOS, RTL is opt-in per app via this flag. Without
+    it, forceRTL silently does nothing on iOS. On Android, RTL is allowed
+    by default (this is a no-op there). Calling on both platforms is the
+    safe cross-platform pattern.
+  - The if guard: forceRTL(true) when already RTL works but logs a
+    warning. The guard avoids that noise on subsequent boots.
+
+PLACEMENT:
+  Right after SplashScreen.preventAutoHideAsync() at the top of the file,
+  before the component definition. Both are top-level "configure native
+  side at module load" calls; reading them together makes intent clear.
+
+
+================================================================================
+STEP 8 — VERIFY ON PHONE
+================================================================================
+
+PROCEDURE FOLLOWED:
+
+(a) Stopped any running Expo dev server (Ctrl+C)
+(b) Started fresh with cache bust:
+      $ npx expo start --clear
+    The --clear flag wipes Metro's transformer cache. Necessary because
+    we added new font assets and Metro caches asset hashes. Without
+    --clear, fonts often fail to load even though they're present on disk.
+
+(c) On the phone:
+    1. Swiped Expo Go away from recent apps (full app kill — not just a
+       reload from dev menu)
+    2. Reopened Expo Go from home screen
+    3. Scanned QR / opened recent project
+    4. Waited for Metro bundle (30–60 seconds first time after --clear)
+
+VERIFICATION CHECKLIST (all PASSED on Galaxy S26 Ultra):
+  ✅ "قهوة" rendered in decorative Naskh — distinct curls, traditional
+     Arabic calligraphy feel (Amiri-Bold loaded successfully)
+  ✅ "QAHWA" rendered in italic serif — classy old-world look, not just
+     slanted-sans (CormorantGaramond-Italic loaded successfully)
+  ✅ Status text rendered in Tajawal — subtle but visible refinement vs.
+     system fallback (Tajawal-Regular loaded successfully)
+  ✅ Status text in green: "● Supabase connected (12 badges)"
+     (Supabase round-trip still working; theme.colors.success applied)
+  ✅ Splash screen gated render correctly — no flash of unstyled text
+  ✅ App boots without errors
+  ✅ RTL armed (visually identical on this centered screen, but
+     I18nManager.isRTL is now true under the hood)
+
+
+================================================================================
+STEP 9 — COMMIT + PUSH
+================================================================================
+
+Files staged (specifically by path, not via `git add .`):
+  assets/fonts             (10 new .ttf files, ~2.33 MB binary)
+  app/_layout.tsx          (modified)
+  app/index.tsx            (modified)
+  lib/theme.ts             (modified)
+
+Commit message used:
+  --------------------------------------------------------------------------
+  Custom Arabic + English typography, theme tokens, RTL armed
+
+  - Load 10 .ttf files (IBM Plex Sans Arabic ×4, Tajawal ×3, Amiri ×2,
+    Cormorant Garamond Italic) via expo-font in app/_layout.tsx.
+  - Splash screen prevents flash-of-unstyled-text: preventAutoHideAsync
+    at module load, hideAsync only after fonts resolve.
+  - Restructure theme.fonts to nested weight variants
+    (theme.fonts.arabicDisplay.bold, .arabicBody.regular, etc.) so each
+    leaf string maps directly to a useFonts() key.
+  - Add theme.colors.success/error and replace hardcoded hex in index.tsx.
+  - Upgrade home screen typography:
+    - "قهوة"  → Amiri-Bold @ 96pt
+    - "QAHWA" → CormorantGaramond-Italic @ 18pt, letter-spaced
+    - status indicator → Tajawal-Regular @ 13pt
+  - Arm RTL: I18nManager.allowRTL(true) + forceRTL(true). Takes effect
+    on next cold start (verified on Galaxy S26 Ultra via kill-and-reopen).
+
+  Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+  --------------------------------------------------------------------------
+
+Final commit hash: 62e3b88
+Pushed to: github.com/aalrehan/QahwaApp (main branch)
+
+NOTE ABOUT BINARY ASSETS IN GIT:
+  ~2.3 MB of font binaries now live in git history. For our scale this is
+  fine (git handles ~100 MB of binaries comfortably). But: if fonts ever
+  change, the OLD font files still bloat history forever. Mitigation
+  options for the future include git-lfs or git-filter-repo. Not needed
+  now; flagged for awareness.
+
+
+================================================================================
+FINAL STATE OF KEY FILES (after this session)
+================================================================================
+
+================================
+FILE: app/_layout.tsx
+================================
+import '../global.css';
+
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { I18nManager } from 'react-native';
+import 'react-native-reanimated';
+
+SplashScreen.preventAutoHideAsync();
+
+I18nManager.allowRTL(true);
+if (!I18nManager.isRTL) {
+  I18nManager.forceRTL(true);
+}
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'IBMPlexSansArabic-Regular':  require('../assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    'IBMPlexSansArabic-Medium':   require('../assets/fonts/IBMPlexSansArabic-Medium.ttf'),
+    'IBMPlexSansArabic-SemiBold': require('../assets/fonts/IBMPlexSansArabic-SemiBold.ttf'),
+    'IBMPlexSansArabic-Bold':     require('../assets/fonts/IBMPlexSansArabic-Bold.ttf'),
+    'Tajawal-Regular':            require('../assets/fonts/Tajawal-Regular.ttf'),
+    'Tajawal-Medium':             require('../assets/fonts/Tajawal-Medium.ttf'),
+    'Tajawal-Bold':               require('../assets/fonts/Tajawal-Bold.ttf'),
+    'Amiri-Regular':              require('../assets/fonts/Amiri-Regular.ttf'),
+    'Amiri-Bold':                 require('../assets/fonts/Amiri-Bold.ttf'),
+    'CormorantGaramond-Italic':   require('../assets/fonts/CormorantGaramond-Italic.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <StatusBar style="dark" />
+    </>
+  );
+}
+
+================================
+FILE: lib/theme.ts
+================================
+export const theme = {
+  colors: {
+    bg: '#FAF7F2',
+    surface: '#FFFFFF',
+    surface2: '#F4E8D8',
+    border: '#C6986B',
+    borderSoft: '#E8DDD0',
+    brown: '#6B3A1F',
+    brownDeep: '#4A2410',
+    orange: '#D2691E',
+    orangeSoft: '#E8854A',
+    text: '#2A1F15',
+    textSoft: '#5A4A3A',
+    muted: '#8B7355',
+    dim: '#B5A595',
+    success: '#2D7A3E',
+    error: '#B33A3A',
+  },
+  fonts: {
+    arabicDisplay: {
+      regular:  'IBMPlexSansArabic-Regular',
+      medium:   'IBMPlexSansArabic-Medium',
+      semibold: 'IBMPlexSansArabic-SemiBold',
+      bold:     'IBMPlexSansArabic-Bold',
+    },
+    arabicBody: {
+      regular: 'Tajawal-Regular',
+      medium:  'Tajawal-Medium',
+      bold:    'Tajawal-Bold',
+    },
+    arabicDecorative: {
+      regular: 'Amiri-Regular',
+      bold:    'Amiri-Bold',
+    },
+    englishDisplay: {
+      italic: 'CormorantGaramond-Italic',
+    },
+  },
+} as const;
+
+export type Theme = typeof theme;
+
+================================
+FILE: app/index.tsx (typography portions)
+================================
+The brand mark, subtitle, and status indicator now use:
+  - قهوة  → fontFamily: theme.fonts.arabicDecorative.bold,  fontSize: 96
+  - QAHWA → fontFamily: theme.fonts.englishDisplay.italic,  fontSize: 18,
+            letterSpacing: 4
+  - All 3 status states → fontFamily: theme.fonts.arabicBody.regular,
+                          fontSize: 13
+
+
+================================================================================
+LESSONS LEARNED THIS SESSION
+================================================================================
+
+(1) FONT LOADING
+    - useFonts() keys must match what fontFamily references. Convention:
+      use the filename without extension. Be ruthless about case.
+    - Splash-screen gating (preventAutoHide → hideAsync after fonts) is
+      the standard pattern for avoiding flash-of-unstyled-text. Worth
+      copying for any RN app that uses custom fonts.
+    - Loading 10 fonts adds ~100–300ms to cold start. Don't pre-optimize
+      with lazy loading until that's actually a measured problem.
+
+(2) FONT FILE STRUCTURE PHILOSOPHY
+    - Don't combine fontFamily with fontWeight or fontStyle when using
+      custom fonts. The weight/style is baked in. Doing both can produce
+      synthesized-bold or double-italic artifacts on Android.
+    - Pick fonts for the ROLE they play (display/body/decorative/
+      english), not just by what looks pretty. Body fonts need 3 weights
+      max. Display fonts need 4. Decorative fonts can have 2 because they
+      see limited use.
+
+(3) THEME TOKENS THAT ACTUALLY MAP
+    - The previous theme had fonts as bare family-name strings — they
+      never could have worked with expo-font, even in principle. Lesson:
+      when designing tokens, end-to-end-trace at least one usage path to
+      make sure values flow correctly to the platform.
+    - Adding semantic colors (success/error) early — even before they're
+      used widely — pays off the moment you have 2+ places needing them.
+
+(4) RTL CONFIGURATION
+    - It's a NATIVE flag, read once at startup. Hot-reload won't change
+      visible RTL state. Always require a full kill-and-reopen during dev.
+    - allowRTL(true) is iOS-specific opt-in. Easy to forget and silently
+      not work.
+    - forceRTL warnings are noisy if you call it when already RTL — wrap
+      with `if (!I18nManager.isRTL)`.
+    - For Arabic-first products, force RTL unconditionally (don't gate on
+      device locale). For products with both LTR and RTL UX intent, use
+      expo-localization to detect.
+
+(5) METRO CACHING
+    - New assets need `npx expo start --clear`. Without it, you can sit
+      with "the file is right there, why isn't it loading" for an hour.
+    - --clear adds ~10s to first bundle. Worth it whenever something
+      asset-related changes.
+
+
+================================================================================
+GIT HISTORY (after this session)
+================================================================================
+
+  62e3b88  Custom Arabic + English typography, theme tokens, RTL armed
+  734156a  docs: replace scaffold README with project-specific one
+  ab53a59  docs: extend session notes with git init + GitHub push steps
+  199aca2  Foundation: Expo + TypeScript + NativeWind + Supabase client +
+           brand mark + connection smoke test.
+
+All on `main`, pushed to https://github.com/aalrehan/QahwaApp (private).
+
+
+================================================================================
+WHAT THIS UNLOCKS (next sessions)
+================================================================================
+
+(1) AUTH SCREENS — `app/(auth)/` with Supabase magic links sign-in/sign-up.
+    This is where RTL starts earning its keep — form layouts, input
+    labels, error messages, button positioning. Expect to discover RTL
+    bugs as part of this work; that's fine, it's expected.
+
+(2) MIRROR theme.colors INTO tailwind.config.js
+    Once we have ~3 screens of `style={{ color: theme.colors.X }}`,
+    Tailwind utility classes like `bg-bg`, `text-brown`, `border-border`
+    will pay dividends in code volume and consistency. Can defer until
+    enough usage justifies it.
+
+(3) UPDATE SESSION_NOTES_2026-05-03.txt OR APPEND TO IT
+    The original session notes covers the foundation build only. This
+    file (2026-05-04) is a standalone snapshot of session 2C. Could
+    consolidate into a single project log later if desired.
+
+(4) ADD OFL.txt TO assets/fonts/ BEFORE APP-STORE SUBMISSION
+    SIL Open Font License compliance. One file, identical across all 4
+    fonts. Defer until preparing for store submission.
+
+(5) BUILD SECURE-STORE BACKED SESSION ADAPTER (LATER)
+    Once auth is in place, swap AsyncStorage for an expo-secure-store
+    adapter so session tokens are encrypted at rest. Not urgent during
+    dev; important before users sign up with real accounts.
+
+
+================================================================================
+END OF SESSION 2C NOTES
+================================================================================
