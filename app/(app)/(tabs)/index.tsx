@@ -166,7 +166,18 @@ export default function FeedTab() {
       <FlatList
         data={feed.logs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CoffeeLogCard log={item} variant="feed" />}
+        renderItem={({ item }) => {
+          const liked = feed.likedLogIds.has(item.id);
+          return (
+            <CoffeeLogCard
+              log={item}
+              variant="feed"
+              isLiked={liked}
+              likesCount={item.likes_count ?? 0}
+              onLike={() => feed.toggleLike(item.id, liked)}
+            />
+          );
+        }}
         ListHeaderComponent={<FeedHeader />}
         contentContainerStyle={{ paddingBottom: 24 }}
         ListEmptyComponent={

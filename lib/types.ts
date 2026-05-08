@@ -39,12 +39,14 @@ export type CoffeeLog = {
   cafe: CafeSummary | null;
   profile: ProfileSummary | null;
   flavor_notes: FlavorNoteSummary[];
+  likes_count: number;
 };
 
 // Raw row shape returned by Supabase before flattening the
-// log_flavor_notes nested join.
-export type RawCoffeeLogRow = Omit<CoffeeLog, 'flavor_notes'> & {
+// log_flavor_notes nested join and the likes(count) aggregate.
+export type RawCoffeeLogRow = Omit<CoffeeLog, 'flavor_notes' | 'likes_count'> & {
   log_flavor_notes:
     | { flavor_note: FlavorNoteSummary | null }[]
     | null;
+  likes_count: { count: number }[] | null;
 };

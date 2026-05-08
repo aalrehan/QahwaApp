@@ -1,5 +1,6 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { useRef } from 'react';
+import { Alert, Animated, Pressable, Text, View } from 'react-native';
 
 import {
   CREMA_COLORS_BY_ID,
@@ -12,6 +13,9 @@ import type { CoffeeLog, FlavorNoteSummary } from '@/lib/types';
 type Props = {
   log: CoffeeLog;
   variant: 'feed' | 'diary';
+  isLiked: boolean;
+  likesCount: number;
+  onLike: () => void;
 };
 
 const ARABIC_MONTHS = [
@@ -228,7 +232,67 @@ function IntensityBar({ value }: { value: number }) {
   );
 }
 
-export function CoffeeLogCard({ log, variant }: Props) {
+function LikeButton({
+  isLiked,
+  likesCount,
+  onPress,
+}: {
+  isLiked: boolean;
+  likesCount: number;
+  onPress: () => void;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  function handlePress() {
+    Animated.spring(scaleAnim, {
+      toValue: 1.3,
+      useNativeDriver: true,
+      tension: 200,
+      friction: 5,
+    }).start(() => {
+      Animated.spring(scaleAnim, {
+        toValue: 1.0,
+        useNativeDriver: true,
+        tension: 200,
+        friction: 5,
+      }).start();
+    });
+    onPress();
+  }
+
+  const showCount = likesCount > 0;
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      hitSlop={6}
+      style={{ padding: 8, alignItems: 'center' }}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        {isLiked ? (
+          <Ionicons name="heart" size={22} color={theme.colors.error} />
+        ) : (
+          <Feather name="heart" size={22} color={theme.colors.muted} />
+        )}
+      </Animated.View>
+      {showCount ? (
+        <Text
+          style={{
+            fontFamily: theme.fonts.arabicBody.medium,
+            fontSize: 11,
+            color: isLiked ? theme.colors.error : theme.colors.muted,
+            textAlign: 'center',
+            marginTop: 2,
+          }}
+        >
+          {likesCount}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+export function CoffeeLogCard({ log, variant, isLiked, likesCount, onLike }: Props) {
   const cremaInfo = CREMA_COLORS_BY_ID[log.crema_color];
   const intensityLabel = INTENSITY_LABELS[log.aroma_intensity] ?? '';
   const ratingLabel = OVERALL_RATING_LABELS[log.overall_rating] ?? '';
@@ -603,12 +667,11 @@ export function CoffeeLogCard({ log, variant }: Props) {
             flexDirection: 'row',
             justifyContent: 'center',
             alignSelf: 'center',
+            alignItems: 'flex-start',
             gap: 48,
           }}
         >
-          <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
-            <Feather name="heart" size={22} color={theme.colors.muted} />
-          </Pressable>
+          <LikeButton isLiked={isLiked} likesCount={likesCount} onPress={onLike} />
           <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
             <Feather name="share-2" size={22} color={theme.colors.muted} />
           </Pressable>

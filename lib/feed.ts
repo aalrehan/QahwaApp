@@ -12,31 +12,46 @@ const SELECT_QUERY = `
   profile:profiles!user_id(username, display_name_ar, city),
   log_flavor_notes(
     flavor_note:flavor_notes(id, name_ar, color_hex, emoji, level)
-  )
+  ),
+  likes_count:likes(count)
 `;
 
 function flattenLog(raw: RawCoffeeLogRow): CoffeeLog {
-  const { log_flavor_notes, ...rest } = raw;
+  const { log_flavor_notes, likes_count, ...rest } = raw;
   const flavor_notes = (log_flavor_notes ?? [])
     .map((entry) => entry.flavor_note)
     .filter((n): n is NonNullable<typeof n> => !!n);
-  return { ...rest, flavor_notes };
+  // PostgREST returns aggregates as `[{ count: N }]`; flatten to a number.
+  const count = Array.isArray(likes_count) ? likes_count[0]?.count ?? 0 : 0;
+  return { ...rest, flavor_notes, likes_count: count };
+}
+
+export async function fetchUserLikedIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('likes')
+    .select('log_id')
+    .eq('user_id', userId);
+  if (error) return new Set();
+  return new Set((data ?? []).map((row) => row.log_id as string));
 }
 
 export type FeedMode = 'public' | 'self';
 
 type UseFeedReturn = {
   logs: CoffeeLog[];
+  likedLogIds: Set<string>;
   loading: boolean;
   error: string | null;
   hasMore: boolean;
   refetch: () => Promise<void>;
   loadMore: () => Promise<void>;
+  toggleLike: (logId: string, currentlyLiked: boolean) => Promise<void>;
 };
 
 export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
   const { user } = useSession();
   const [logs, setLogs] = useState<CoffeeLog[]>([]);
+  const [likedLogIds, setLikedLogIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -47,6 +62,7 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
     async (replace: boolean) => {
       if (mode === 'self' && !user) {
         setLogs([]);
+        setLikedLogIds(new Set());
         setLoading(false);
         return;
       }
@@ -67,7 +83,13 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
       if (mode === 'public') query = query.eq('is_public', true);
       else if (mode === 'self' && user) query = query.eq('user_id', user.id);
 
-      const { data, error: err } = await query;
+      // Run page fetch in parallel with liked-ids fetch on initial/refetch.
+      const likedPromise =
+        replace && user
+          ? fetchUserLikedIds(user.id)
+          : Promise.resolve<Set<string> | null>(null);
+
+      const [{ data, error: err }, likedSet] = await Promise.all([query, likedPromise]);
 
       if (err) {
         setError(err.message);
@@ -79,6 +101,8 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
       const flattened = ((data ?? []) as unknown as RawCoffeeLogRow[]).map(flattenLog);
       if (replace) setLogs(flattened);
       else setLogs((prev) => [...prev, ...flattened]);
+
+      if (likedSet) setLikedLogIds(likedSet);
 
       offsetRef.current += flattened.length;
       setHasMore(flattened.length === PAGE_SIZE);
@@ -93,6 +117,75 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
     if (!hasMore || loading || inFlightRef.current) return;
     await fetchPage(false);
   }, [fetchPage, hasMore, loading]);
+
+  // Optimistic toggle. Reverts state on error. Treats UNIQUE-constraint
+  // (already-liked) errors as success rather than surfacing them.
+  const toggleLike = useCallback(
+    async (logId: string, currentlyLiked: boolean) => {
+      if (!user) return;
+
+      // Optimistic update
+      setLikedLogIds((prev) => {
+        const next = new Set(prev);
+        if (currentlyLiked) next.delete(logId);
+        else next.add(logId);
+        return next;
+      });
+      setLogs((prev) =>
+        prev.map((l) =>
+          l.id === logId
+            ? {
+                ...l,
+                likes_count: Math.max(0, l.likes_count + (currentlyLiked ? -1 : 1)),
+              }
+            : l,
+        ),
+      );
+
+      try {
+        if (currentlyLiked) {
+          const { error: delErr } = await supabase
+            .from('likes')
+            .delete()
+            .eq('log_id', logId)
+            .eq('user_id', user.id);
+          if (delErr) throw delErr;
+        } else {
+          const { error: insErr } = await supabase
+            .from('likes')
+            .insert({ log_id: logId, user_id: user.id });
+          if (insErr) {
+            // 23505 = unique_violation. Treat duplicate insert as already-liked success.
+            const code = (insErr as { code?: string }).code;
+            const isDuplicate =
+              code === '23505' ||
+              insErr.message.toLowerCase().includes('duplicate') ||
+              insErr.message.toLowerCase().includes('unique');
+            if (!isDuplicate) throw insErr;
+          }
+        }
+      } catch {
+        // Revert optimistic update on failure
+        setLikedLogIds((prev) => {
+          const next = new Set(prev);
+          if (currentlyLiked) next.add(logId);
+          else next.delete(logId);
+          return next;
+        });
+        setLogs((prev) =>
+          prev.map((l) =>
+            l.id === logId
+              ? {
+                  ...l,
+                  likes_count: Math.max(0, l.likes_count + (currentlyLiked ? 1 : -1)),
+                }
+              : l,
+          ),
+        );
+      }
+    },
+    [user],
+  );
 
   useEffect(() => {
     void fetchPage(true);
@@ -137,5 +230,14 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
     };
   }, [mode, user]);
 
-  return { logs, loading, error, hasMore, refetch, loadMore };
+  return {
+    logs,
+    likedLogIds,
+    loading,
+    error,
+    hasMore,
+    refetch,
+    loadMore,
+    toggleLike,
+  };
 }
