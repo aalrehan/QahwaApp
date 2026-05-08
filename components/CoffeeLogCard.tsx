@@ -16,6 +16,9 @@ type Props = {
   isLiked: boolean;
   likesCount: number;
   onLike: () => void;
+  truncateNotes?: boolean;
+  bare?: boolean;
+  hideActions?: boolean;
 };
 
 const ARABIC_MONTHS = [
@@ -292,34 +295,45 @@ function LikeButton({
   );
 }
 
-export function CoffeeLogCard({ log, variant, isLiked, likesCount, onLike }: Props) {
+export function CoffeeLogCard({
+  log,
+  variant,
+  isLiked,
+  likesCount,
+  onLike,
+  truncateNotes = true,
+  bare = false,
+  hideActions = false,
+}: Props) {
   const cremaInfo = CREMA_COLORS_BY_ID[log.crema_color];
   const intensityLabel = INTENSITY_LABELS[log.aroma_intensity] ?? '';
   const ratingLabel = OVERALL_RATING_LABELS[log.overall_rating] ?? '';
-  const truncatedNotes =
-    log.notes && log.notes.length > 200
+  const displayNotes =
+    truncateNotes && log.notes && log.notes.length > 200
       ? log.notes.slice(0, 200) + '...'
       : log.notes;
-  const hasNotes = !!truncatedNotes && truncatedNotes.trim().length > 0;
+  const hasNotes = !!displayNotes && displayNotes.trim().length > 0;
   const hasFlavors = log.flavor_notes.length > 0;
 
-  return (
-    <View
-      style={{
+  const containerStyle = bare
+    ? { backgroundColor: 'transparent' as const }
+    : {
         marginHorizontal: 16,
         marginBottom: 24,
         backgroundColor: theme.colors.surface,
         borderWidth: 1,
         borderColor: theme.colors.borderSoft,
         borderRadius: 24,
-        overflow: 'hidden',
+        overflow: 'hidden' as const,
         shadowColor: theme.colors.brown,
         shadowOpacity: 0.05,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 6 },
         elevation: 3,
-      }}
-    >
+      };
+
+  return (
+    <View style={containerStyle}>
       {/* SECTION 1: HEADER */}
       <View
         style={{
@@ -619,7 +633,7 @@ export function CoffeeLogCard({ log, variant, isLiked, likesCount, onLike }: Pro
                 lineHeight: 22,
               }}
             >
-              {truncatedNotes}
+              {displayNotes}
             </Text>
           </View>
         </>
@@ -652,31 +666,41 @@ export function CoffeeLogCard({ log, variant, isLiked, likesCount, onLike }: Pro
         </Text>
       </View>
 
-      <SectionDivider />
-
-      {/* SECTION 9: ACTIONS */}
-      <View
-        style={{
-          paddingHorizontal: 24,
-          paddingVertical: 16,
-          alignItems: 'center',
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignSelf: 'center',
-            alignItems: 'flex-start',
-            gap: 48,
-          }}
-        >
-          <LikeButton isLiked={isLiked} likesCount={likesCount} onPress={onLike} />
-          <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
-            <Feather name="share-2" size={22} color={theme.colors.muted} />
-          </Pressable>
-        </View>
-      </View>
+      {hideActions ? null : (
+        <>
+          <SectionDivider />
+          {/* SECTION 9: ACTIONS — onStartShouldSetResponder isolates touches
+              from any parent Pressable wrapping the whole card. */}
+          <View
+            onStartShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
+            style={{
+              paddingHorizontal: 24,
+              paddingVertical: 16,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignSelf: 'center',
+                alignItems: 'flex-start',
+                gap: 48,
+              }}
+            >
+              <LikeButton isLiked={isLiked} likesCount={likesCount} onPress={onLike} />
+              <Pressable
+                onPress={comingSoon}
+                hitSlop={6}
+                style={{ padding: 8, alignItems: 'center' }}
+              >
+                <Feather name="share-2" size={22} color={theme.colors.muted} />
+              </Pressable>
+            </View>
+          </View>
+        </>
+      )}
     </View>
   );
 }

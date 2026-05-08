@@ -1,3 +1,4 @@
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -75,6 +76,13 @@ export default function FeedTab() {
   const onEndReached = useCallback(() => {
     if (feed.hasMore) feed.loadMore();
   }, [feed]);
+
+  // Refetch on tab focus so edits/deletes from the detail screen are reflected.
+  useFocusEffect(
+    useCallback(() => {
+      void feed.refetch();
+    }, [feed.refetch]),
+  );
 
   if (feed.loading && feed.logs.length === 0) {
     return (
@@ -169,13 +177,22 @@ export default function FeedTab() {
         renderItem={({ item }) => {
           const liked = feed.likedLogIds.has(item.id);
           return (
-            <CoffeeLogCard
-              log={item}
-              variant="feed"
-              isLiked={liked}
-              likesCount={item.likes_count ?? 0}
-              onLike={() => feed.toggleLike(item.id, liked)}
-            />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)/log/[id]',
+                  params: { id: item.id },
+                })
+              }
+            >
+              <CoffeeLogCard
+                log={item}
+                variant="feed"
+                isLiked={liked}
+                likesCount={item.likes_count ?? 0}
+                onLike={() => feed.toggleLike(item.id, liked)}
+              />
+            </Pressable>
           );
         }}
         ListHeaderComponent={<FeedHeader />}

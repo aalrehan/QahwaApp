@@ -1,6 +1,8 @@
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -11,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CoffeeLogCard } from '@/components/CoffeeLogCard';
 import { EmptyState } from '@/components/EmptyState';
+import { useSession } from '@/lib/auth';
 import { useFeed } from '@/lib/feed';
+import { supabase } from '@/lib/supabase';
 import { theme } from '@/lib/theme';
 
 function DiaryHeader() {
@@ -82,10 +86,57 @@ function DiaryHeader() {
 
 export default function DiaryTab() {
   const feed = useFeed({ mode: 'self' });
+  const { user } = useSession();
 
   const onEndReached = useCallback(() => {
     if (feed.hasMore) feed.loadMore();
   }, [feed]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void feed.refetch();
+    }, [feed.refetch]),
+  );
+
+  const handleLongPress = useCallback(
+    (logId: string) => {
+      Alert.alert('خيارات', '', [
+        {
+          text: 'تعديل',
+          onPress: () =>
+            router.push({ pathname: '/(app)/log/new', params: { editId: logId } }),
+        },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('حذف التسجيل', 'هل أنت متأكد؟', [
+              { text: 'إلغاء', style: 'cancel' },
+              {
+                text: 'حذف',
+                style: 'destructive',
+                onPress: async () => {
+                  if (!user) return;
+                  const { error: delErr } = await supabase
+                    .from('coffee_logs')
+                    .delete()
+                    .eq('id', logId)
+                    .eq('user_id', user.id);
+                  if (delErr) {
+                    Alert.alert('خطأ', 'فشل الحذف، حاول مجدداً');
+                    return;
+                  }
+                  await feed.refetch();
+                },
+              },
+            ]);
+          },
+        },
+        { text: 'إلغاء', style: 'cancel' },
+      ]);
+    },
+    [user, feed],
+  );
 
   if (feed.loading && feed.logs.length === 0) {
     return (
@@ -180,13 +231,23 @@ export default function DiaryTab() {
         renderItem={({ item }) => {
           const liked = feed.likedLogIds.has(item.id);
           return (
-            <CoffeeLogCard
-              log={item}
-              variant="diary"
-              isLiked={liked}
-              likesCount={item.likes_count ?? 0}
-              onLike={() => feed.toggleLike(item.id, liked)}
-            />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)/log/[id]',
+                  params: { id: item.id },
+                })
+              }
+              onLongPress={() => handleLongPress(item.id)}
+            >
+              <CoffeeLogCard
+                log={item}
+                variant="diary"
+                isLiked={liked}
+                likesCount={item.likes_count ?? 0}
+                onLike={() => feed.toggleLike(item.id, liked)}
+              />
+            </Pressable>
           );
         }}
         ListHeaderComponent={<DiaryHeader />}

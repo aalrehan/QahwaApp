@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Step1Setup } from '@/components/log-form/Step1Setup';
@@ -16,8 +24,28 @@ import { useSession } from '@/lib/auth';
 import { LogFormProvider, useLogForm } from '@/lib/log-form-context';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/lib/theme';
+import type { CoffeeLog, RawCoffeeLogRow } from '@/lib/types';
 
 type Phase = 'form' | 'submitting' | 'success';
+
+const SELECT_QUERY = `
+  *,
+  cafe:cafes(id, name_ar, city),
+  profile:profiles!user_id(username, display_name_ar, city),
+  log_flavor_notes(
+    flavor_note:flavor_notes(id, name_ar, color_hex, emoji, level)
+  ),
+  likes_count:likes(count)
+`;
+
+function flattenLog(raw: RawCoffeeLogRow): CoffeeLog {
+  const { log_flavor_notes, likes_count, ...rest } = raw;
+  const flavor_notes = (log_flavor_notes ?? [])
+    .map((entry) => entry.flavor_note)
+    .filter((n): n is NonNullable<typeof n> => !!n);
+  const count = Array.isArray(likes_count) ? likes_count[0]?.count ?? 0 : 0;
+  return { ...rest, flavor_notes, likes_count: count };
+}
 
 function StepRenderer() {
   const { currentStep } = useLogForm();
@@ -61,14 +89,52 @@ function mapSubmitError(message: string): string {
     return 'خطأ في الصلاحيات';
   }
   if (m.includes('network') || m.includes('fetch')) return 'تحقق من اتصالك بالإنترنت';
+  if (m.includes('not found') || m.includes('no rows')) return 'لم يتم العثور على التسجيل';
   return message;
 }
 
-function FormHost() {
+function FormHost({ editId }: { editId?: string }) {
+  const isEditing = !!editId;
   const { user } = useSession();
-  const { formData, reset } = useLogForm();
+  const { formData, populate, reset } = useLogForm();
   const [phase, setPhase] = useState<Phase>('form');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(isEditing);
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const populatedRef = useRef(false);
+
+  // Fetch + populate when in edit mode.
+  useEffect(() => {
+    if (!isEditing || !editId || populatedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      setEditLoading(true);
+      setEditLoadError(null);
+      const { data, error } = await supabase
+        .from('coffee_logs')
+        .select(SELECT_QUERY)
+        .eq('id', editId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setEditLoadError(error.message);
+        setEditLoading(false);
+        return;
+      }
+      if (!data) {
+        setEditLoadError('لم يتم العثور على التسجيل');
+        setEditLoading(false);
+        return;
+      }
+      const log = flattenLog(data as unknown as RawCoffeeLogRow);
+      populate(log);
+      populatedRef.current = true;
+      setEditLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, editId, populate]);
 
   useEffect(() => {
     if (phase !== 'success') return;
@@ -116,6 +182,40 @@ function FormHost() {
     };
 
     try {
+      if (isEditing && editId) {
+        // UPDATE existing log; user_id eq is a defense-in-depth check on top of RLS.
+        const { error: updateError } = await supabase
+          .from('coffee_logs')
+          .update(payload)
+          .eq('id', editId)
+          .eq('user_id', user.id);
+        if (updateError) throw updateError;
+
+        // Replace flavor links: delete all, then re-insert (simpler than diffing).
+        const { error: deleteLinksError } = await supabase
+          .from('log_flavor_notes')
+          .delete()
+          .eq('log_id', editId);
+        if (deleteLinksError) {
+          console.warn('flavor link delete failed:', deleteLinksError.message);
+        }
+        if (formData.flavorNoteIds.length > 0) {
+          const links = formData.flavorNoteIds.map((noteId) => ({
+            log_id: editId,
+            note_id: noteId,
+          }));
+          const { error: linkError } = await supabase
+            .from('log_flavor_notes')
+            .insert(links);
+          if (linkError) {
+            console.warn('flavor link insert failed:', linkError.message);
+          }
+        }
+
+        setPhase('success');
+        return;
+      }
+
       const { data: log, error: logError } = await supabase
         .from('coffee_logs')
         .insert(payload)
@@ -143,6 +243,59 @@ function FormHost() {
       setSubmitError(mapSubmitError(message));
       setPhase('form');
     }
+  }
+
+  if (editLoading) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.bg }}
+        edges={['top', 'bottom']}
+      >
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.brown} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (editLoadError) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.bg }}
+        edges={['top', 'bottom']}
+      >
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 32,
+          }}
+        >
+          <Text
+            style={{
+              color: theme.colors.error,
+              fontSize: 14,
+              fontFamily: theme.fonts.arabicBody.regular,
+              textAlign: 'center',
+            }}
+          >
+            {editLoadError}
+          </Text>
+          <Pressable onPress={() => router.dismiss()} style={{ marginTop: 16, padding: 8 }}>
+            <Text
+              style={{
+                color: theme.colors.orange,
+                fontFamily: theme.fonts.arabicBody.medium,
+                fontSize: 13,
+              }}
+            >
+              رجوع
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (phase === 'success') {
@@ -174,7 +327,7 @@ function FormHost() {
               includeFontPadding: false,
             }}
           >
-            تم الحفظ
+            {isEditing ? 'تم التحديث' : 'تم الحفظ'}
           </Text>
           <Text
             style={{
@@ -185,7 +338,7 @@ function FormHost() {
               textAlign: 'center',
             }}
           >
-            ظهرت قهوتك في المفكرة
+            {isEditing ? 'تم تحديث قهوتك' : 'ظهرت قهوتك في المفكرة'}
           </Text>
         </View>
       </SafeAreaView>
@@ -201,7 +354,7 @@ function FormHost() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <StepHeader />
+        <StepHeader isEditing={isEditing} />
         <View style={{ flex: 1 }}>
           <AnimatedStepContainer />
         </View>
@@ -227,16 +380,21 @@ function FormHost() {
             </Text>
           </View>
         )}
-        <StepFooter onSubmit={handleSubmit} submitting={phase === 'submitting'} />
+        <StepFooter
+          onSubmit={handleSubmit}
+          submitting={phase === 'submitting'}
+          isEditing={isEditing}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 export default function NewLogScreen() {
+  const params = useLocalSearchParams<{ editId?: string }>();
   return (
     <LogFormProvider>
-      <FormHost />
+      <FormHost editId={params.editId} />
     </LogFormProvider>
   );
 }

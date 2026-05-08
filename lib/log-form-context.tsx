@@ -1,6 +1,8 @@
 import { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 
+import type { CoffeeLog } from '@/lib/types';
+
 export type CafeSelection = {
   id?: string;
   name_ar: string;
@@ -43,6 +45,7 @@ type LogFormContextValue = {
   formData: LogFormData;
   setStep: (n: number) => void;
   updateData: (partial: Partial<LogFormData>) => void;
+  populate: (log: CoffeeLog) => void;
   reset: () => void;
   fadeAnim: Animated.Value;
   slideAnim: Animated.Value;
@@ -111,6 +114,34 @@ export function LogFormProvider({ children }: { children: ReactNode }) {
     setFormData((prev) => ({ ...prev, ...partial }));
   }, []);
 
+  // Pre-fill the form from an existing log for edit mode.
+  // cup_description was merged into notes on save and can't be cleanly
+  // un-merged, so it stays empty here and the merged text shows in `notes`.
+  const populate = useCallback((log: CoffeeLog) => {
+    setFormData({
+      cafe: log.cafe
+        ? { id: log.cafe.id, name_ar: log.cafe.name_ar, city: log.cafe.city ?? '' }
+        : null,
+      drinkName: log.drink_name,
+      brewMethod: log.brew_method,
+      origin: log.origin ?? '',
+      cupDescription: '',
+      aromaNotes: log.aroma_notes ?? '',
+      aromaIntensity: log.aroma_intensity ?? 0,
+      cremaRating: log.crema_rating ?? 0,
+      cremaColor: log.crema_color ?? '',
+      flavorNoteIds: log.flavor_notes.map((f) => f.id),
+      body: log.body ?? '',
+      mouthfeel: log.mouthfeel ?? '',
+      overallRating: log.overall_rating ?? 0,
+      notes: log.notes ?? '',
+      isPublic: log.is_public,
+    });
+    setCurrentStep(1);
+    fadeAnim.setValue(1);
+    slideAnim.setValue(0);
+  }, [fadeAnim, slideAnim]);
+
   const reset = useCallback(() => {
     setCurrentStep(1);
     setFormData(INITIAL_DATA);
@@ -121,7 +152,7 @@ export function LogFormProvider({ children }: { children: ReactNode }) {
 
   return (
     <LogFormContext.Provider
-      value={{ currentStep, formData, setStep, updateData, reset, fadeAnim, slideAnim }}
+      value={{ currentStep, formData, setStep, updateData, populate, reset, fadeAnim, slideAnim }}
     >
       {children}
     </LogFormContext.Provider>

@@ -14,9 +14,10 @@ const FINAL_STEP = 6;
 type Props = {
   onSubmit?: () => void;
   submitting?: boolean;
+  isEditing?: boolean;
 };
 
-export function StepFooter({ onSubmit, submitting = false }: Props) {
+export function StepFooter({ onSubmit, submitting = false, isEditing = false }: Props) {
   const { currentStep, formData, setStep } = useLogForm();
   const valid = isStepValid(currentStep, formData);
   const isFinalStep = currentStep === FINAL_STEP;
@@ -39,9 +40,13 @@ export function StepFooter({ onSubmit, submitting = false }: Props) {
 
   const buttonDisabled = !valid || submitting;
   const ctaLabel = submitting
-    ? 'جارٍ الحفظ...'
+    ? isEditing
+      ? 'جارٍ التحديث...'
+      : 'جارٍ الحفظ...'
     : isFinalStep
-      ? 'حفظ'
+      ? isEditing
+        ? 'تحديث'
+        : 'حفظ'
       : 'التالي';
 
   return (
