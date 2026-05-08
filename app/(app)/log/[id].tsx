@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ViewShot from 'react-native-view-shot';
 
 import { CoffeeLogCard } from '@/components/CoffeeLogCard';
 import { useSession } from '@/lib/auth';
+import { shareLogCard } from '@/lib/share-log';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/lib/theme';
 import type { CoffeeLog, RawCoffeeLogRow } from '@/lib/types';
@@ -35,10 +37,6 @@ function flattenLog(raw: RawCoffeeLogRow): CoffeeLog {
     .filter((n): n is NonNullable<typeof n> => !!n);
   const count = Array.isArray(likes_count) ? likes_count[0]?.count ?? 0 : 0;
   return { ...rest, flavor_notes, likes_count: count };
-}
-
-function comingSoon() {
-  Alert.alert('قريباً', 'هذه الميزة ستكون متاحة قريباً');
 }
 
 function DetailLogo() {
@@ -148,10 +146,12 @@ function LikeFooter({
   isLiked,
   likesCount,
   onLike,
+  onShare,
 }: {
   isLiked: boolean;
   likesCount: number;
   onLike: () => void;
+  onShare: () => void;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -207,7 +207,7 @@ function LikeFooter({
           </Text>
         ) : null}
       </Pressable>
-      <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
+      <Pressable onPress={onShare} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
         <Feather name="share-2" size={24} color={theme.colors.muted} />
       </Pressable>
     </View>
@@ -224,6 +224,11 @@ export default function LogDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const viewShotRef = useRef<ViewShot | null>(null);
+
+  const handleShare = useCallback(() => {
+    void shareLogCard(viewShotRef);
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -439,17 +444,28 @@ export default function LogDetailScreen() {
           showsVerticalScrollIndicator={false}
         >
           <DetailLogo />
-          <CoffeeLogCard
-            log={log}
-            variant={isOwn ? 'diary' : 'feed'}
+          <ViewShot
+            ref={viewShotRef}
+            options={{ format: 'png', quality: 0.95, result: 'tmpfile' }}
+            style={{ backgroundColor: theme.colors.bg }}
+          >
+            <CoffeeLogCard
+              log={log}
+              variant={isOwn ? 'diary' : 'feed'}
+              isLiked={isLiked}
+              likesCount={likesCount}
+              onLike={toggleLike}
+              truncateNotes={false}
+              bare
+              hideActions
+            />
+          </ViewShot>
+          <LikeFooter
             isLiked={isLiked}
             likesCount={likesCount}
             onLike={toggleLike}
-            truncateNotes={false}
-            bare
-            hideActions
+            onShare={handleShare}
           />
-          <LikeFooter isLiked={isLiked} likesCount={likesCount} onLike={toggleLike} />
         </ScrollView>
       )}
 

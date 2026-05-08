@@ -16,6 +16,7 @@ type Props = {
   isLiked: boolean;
   likesCount: number;
   onLike: () => void;
+  onShare?: () => void;
   truncateNotes?: boolean;
   bare?: boolean;
   hideActions?: boolean;
@@ -301,6 +302,7 @@ export function CoffeeLogCard({
   isLiked,
   likesCount,
   onLike,
+  onShare,
   truncateNotes = true,
   bare = false,
   hideActions = false,
@@ -691,7 +693,7 @@ export function CoffeeLogCard({
             >
               <LikeButton isLiked={isLiked} likesCount={likesCount} onPress={onLike} />
               <Pressable
-                onPress={comingSoon}
+                onPress={onShare ?? comingSoon}
                 hitSlop={6}
                 style={{ padding: 8, alignItems: 'center' }}
               >

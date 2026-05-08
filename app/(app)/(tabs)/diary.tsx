@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CoffeeLogCard } from '@/components/CoffeeLogCard';
 import { EmptyState } from '@/components/EmptyState';
+import { ShareableCoffeeLogCard } from '@/components/ShareableCoffeeLogCard';
 import { useSession } from '@/lib/auth';
 import { useFeed } from '@/lib/feed';
 import { supabase } from '@/lib/supabase';
@@ -240,7 +240,7 @@ export default function DiaryTab() {
               }
               onLongPress={() => handleLongPress(item.id)}
             >
-              <CoffeeLogCard
+              <ShareableCoffeeLogCard
                 log={item}
                 variant="diary"
                 isLiked={liked}
