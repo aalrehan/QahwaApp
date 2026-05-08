@@ -1,5 +1,4 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { isStepValid, useLogForm } from '@/lib/log-form-context';
@@ -7,26 +6,38 @@ import { theme } from '@/lib/theme';
 
 const TOTAL_STEPS = 6;
 
-export function StepFooter() {
-  const { currentStep, formData, setStep, reset } = useLogForm();
+type Props = {
+  onSubmit?: () => void;
+  submitting?: boolean;
+};
+
+export function StepFooter({ onSubmit, submitting = false }: Props) {
+  const { currentStep, formData, setStep } = useLogForm();
   const valid = isStepValid(currentStep, formData);
   const isFinalStep = currentStep === TOTAL_STEPS;
-  const showBack = currentStep > 1;
+  const showBack = currentStep > 1 && !submitting;
 
   function handleNext() {
+    if (submitting) return;
     if (!valid) return;
     if (isFinalStep) {
-      // V1: saving not implemented yet — close modal.
-      reset();
-      router.dismiss();
+      onSubmit?.();
       return;
     }
     setStep(currentStep + 1);
   }
 
   function handleBack() {
+    if (submitting) return;
     if (currentStep > 1) setStep(currentStep - 1);
   }
+
+  const buttonDisabled = !valid || submitting;
+  const ctaLabel = submitting
+    ? 'جارٍ الحفظ...'
+    : isFinalStep
+      ? 'حفظ'
+      : 'التالي';
 
   return (
     <View
@@ -67,7 +78,7 @@ export function StepFooter() {
 
       <Pressable
         onPress={handleNext}
-        disabled={!valid}
+        disabled={buttonDisabled}
         style={{ flex: showBack ? 0.65 : 1 }}
       >
         <LinearGradient
@@ -78,7 +89,7 @@ export function StepFooter() {
             paddingVertical: 16,
             borderRadius: 12,
             alignItems: 'center',
-            opacity: valid ? 1 : 0.5,
+            opacity: buttonDisabled ? 0.5 : 1,
           }}
         >
           <Text
@@ -88,7 +99,7 @@ export function StepFooter() {
               fontFamily: theme.fonts.arabicBody.bold,
             }}
           >
-            {isFinalStep ? 'حفظ' : 'التالي'}
+            {ctaLabel}
           </Text>
         </LinearGradient>
       </Pressable>

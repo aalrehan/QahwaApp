@@ -128,7 +128,7 @@ export default function ProfileSetupScreen() {
       });
 
       setStep('success');
-      setTimeout(() => router.replace('/(app)'), 600);
+      setTimeout(() => router.replace('/(app)/(tabs)'), 600);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setFormError(mapProfileError(message));

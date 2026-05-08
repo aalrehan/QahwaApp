@@ -17,7 +17,7 @@ export type LogFormData = {
   aromaIntensity?: number;
   cremaRating?: number;
   cremaColor?: string;
-  flavorNoteIds?: string[];
+  flavorNoteIds: string[];
   body?: string;
   mouthfeel?: string;
   overallRating?: number;
@@ -31,6 +31,7 @@ const INITIAL_DATA: LogFormData = {
   brewMethod: '',
   origin: '',
   cupDescription: '',
+  flavorNoteIds: [],
   isPublic: true,
 };
 
@@ -145,11 +146,22 @@ export function isStepValid(step: number, data: LogFormData): boolean {
         data.brewMethod !== ''
       );
     case 2:
-    case 3:
-    case 4:
-    case 5:
-    case 6:
       return true;
+    case 3:
+      return (
+        (data.aromaNotes ?? '').trim().length >= 5 &&
+        (data.aromaIntensity ?? 0) >= 1
+      );
+    case 4:
+      return (data.cremaRating ?? 0) >= 1 && !!data.cremaColor;
+    case 5:
+      return data.flavorNoteIds.length >= 1;
+    case 6:
+      return (
+        !!data.body &&
+        !!data.mouthfeel &&
+        (data.overallRating ?? 0) >= 1
+      );
     default:
       return false;
   }

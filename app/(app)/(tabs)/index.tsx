@@ -1,110 +1,203 @@
-import { Text, View } from 'react-native';
+import { useCallback } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CoffeeLogCard } from '@/components/CoffeeLogCard';
+import { EmptyState } from '@/components/EmptyState';
+import { useFeed } from '@/lib/feed';
 import { theme } from '@/lib/theme';
 
-export default function FeedTab() {
+function FeedHeader() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={['top']}>
+    <View
+      style={{
+        alignItems: 'center',
+        paddingTop: 16,
+        paddingBottom: 24,
+      }}
+    >
       <View
         style={{
-          flex: 1,
+          flexDirection: 'row',
           alignItems: 'center',
-          paddingTop: 40,
-          paddingHorizontal: 32,
+          justifyContent: 'center',
         }}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text
-            style={{
-              color: theme.colors.brown,
-              fontSize: 32,
-              lineHeight: 32,
-              fontFamily: theme.fonts.arabicDecorative.bold,
-              includeFontPadding: false,
-            }}
-          >
-            قهوة
-          </Text>
-          <View
-            style={{
-              width: 1,
-              height: 18,
-              backgroundColor: theme.colors.border,
-              marginHorizontal: 12,
-              opacity: 0.6,
-              alignSelf: 'center',
-            }}
-          />
-          <Text
-            style={{
-              color: theme.colors.brown,
-              fontSize: 32,
-              lineHeight: 32,
-              fontFamily: theme.fonts.englishDisplay.italic,
-              letterSpacing: 4,
-              includeFontPadding: false,
-              marginTop: -4,
-            }}
-          >
-            QAHWA
-          </Text>
-        </View>
-
         <Text
           style={{
             color: theme.colors.brown,
-            fontSize: 22,
-            fontFamily: theme.fonts.arabicDisplay.bold,
-            textAlign: 'center',
-            marginTop: 40,
+            fontSize: 32,
+            lineHeight: 32,
+            fontFamily: theme.fonts.arabicDecorative.bold,
+            includeFontPadding: false,
           }}
         >
-          الرئيسية
+          قهوة
         </Text>
-
-        <Text
-          style={{
-            color: theme.colors.muted,
-            fontSize: 14,
-            fontFamily: theme.fonts.arabicBody.regular,
-            textAlign: 'center',
-            marginTop: 12,
-          }}
-        >
-          ابدأ بتسجيل قهوتك الأولى
-        </Text>
-
         <View
           style={{
-            backgroundColor: theme.colors.surface,
-            borderWidth: 1,
-            borderColor: theme.colors.borderSoft,
-            borderRadius: 16,
-            padding: 24,
-            marginTop: 32,
-            width: '100%',
-            maxWidth: 360,
+            width: 1,
+            height: 18,
+            backgroundColor: theme.colors.border,
+            marginHorizontal: 12,
+            opacity: 0.6,
+            alignSelf: 'center',
+          }}
+        />
+        <Text
+          style={{
+            color: theme.colors.brown,
+            fontSize: 32,
+            lineHeight: 32,
+            fontFamily: theme.fonts.englishDisplay.italic,
+            letterSpacing: 4,
+            includeFontPadding: false,
+            marginTop: -4,
           }}
         >
+          QAHWA
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+export default function FeedTab() {
+  const feed = useFeed({ mode: 'public' });
+
+  const onEndReached = useCallback(() => {
+    if (feed.hasMore) feed.loadMore();
+  }, [feed]);
+
+  if (feed.loading && feed.logs.length === 0) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.bg }}
+        edges={['top']}
+      >
+        <FeedHeader />
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: -40,
+          }}
+        >
+          <ActivityIndicator size="large" color={theme.colors.brown} />
           <Text
             style={{
-              color: theme.colors.brown,
-              fontSize: 14,
-              fontFamily: theme.fonts.arabicBody.medium,
-              textAlign: 'center',
+              marginTop: 12,
+              fontSize: 13,
+              fontFamily: theme.fonts.arabicBody.regular,
+              color: theme.colors.muted,
             }}
           >
-            اضغط على + لاضافة كوب قهوة
+            جارٍ التحميل...
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (feed.error && feed.logs.length === 0) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.bg }}
+        edges={['top']}
+      >
+        <FeedHeader />
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 32,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: 'rgba(179, 58, 58, 0.1)',
+              padding: 12,
+              borderRadius: 8,
+              width: '100%',
+              maxWidth: 360,
+            }}
+          >
+            <Text
+              style={{
+                color: theme.colors.error,
+                fontSize: 13,
+                fontFamily: theme.fonts.arabicBody.regular,
+                textAlign: 'center',
+              }}
+            >
+              فشل تحميل القهوات
+            </Text>
+          </View>
+          <Pressable onPress={feed.refetch} style={{ marginTop: 16, padding: 8 }}>
+            <Text
+              style={{
+                color: theme.colors.orange,
+                fontFamily: theme.fonts.arabicBody.medium,
+                fontSize: 13,
+              }}
+            >
+              إعادة المحاولة
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.colors.bg }}
+      edges={['top']}
+    >
+      <FlatList
+        data={feed.logs}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <CoffeeLogCard log={item} variant="feed" />}
+        ListHeaderComponent={<FeedHeader />}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        ListEmptyComponent={
+          !feed.loading ? (
+            <EmptyState
+              icon="coffee"
+              title="لا توجد قهوات بعد"
+              subtitle="ابدأ بتسجيل قهوتك الأولى لرؤيتها هنا"
+              actionLabel="اضغط +"
+            />
+          ) : null
+        }
+        ListFooterComponent={
+          feed.loading && feed.logs.length > 0 ? (
+            <ActivityIndicator
+              color={theme.colors.brown}
+              style={{ padding: 20 }}
+            />
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={feed.loading && feed.logs.length > 0}
+            onRefresh={feed.refetch}
+            tintColor={theme.colors.brown}
+            colors={[theme.colors.brown]}
+          />
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
+      />
     </SafeAreaView>
   );
 }

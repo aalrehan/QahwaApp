@@ -54,5 +54,5 @@ export default function SessionRouter() {
     );
   }
 
-  return session ? <Redirect href="/(app)" /> : <Redirect href="/(auth)/login" />;
+  return session ? <Redirect href="/(app)/(tabs)" /> : <Redirect href="/(auth)/login" />;
 }
