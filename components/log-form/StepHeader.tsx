@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import { Alert, Pressable, Text, View } from 'react-native';
 
-import { useLogForm } from '@/lib/log-form-context';
+import { getDisplayStep, useLogForm } from '@/lib/log-form-context';
 import { theme } from '@/lib/theme';
 
-const TOTAL_STEPS = 6;
-
 export function StepHeader() {
-  const { currentStep, reset } = useLogForm();
+  const { currentStep, formData, reset } = useLogForm();
+  const { displayStep, totalSteps } = getDisplayStep(currentStep, formData.brewMethod);
 
   function handleClose() {
     Alert.alert(
@@ -51,7 +50,7 @@ export function StepHeader() {
             fontFamily: theme.fonts.arabicBody.medium,
           }}
         >
-          {`الخطوة ${currentStep} من ${TOTAL_STEPS}`}
+          {`الخطوة ${displayStep} من ${totalSteps}`}
         </Text>
 
         <View
@@ -63,7 +62,7 @@ export function StepHeader() {
             width: '70%',
           }}
         >
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+          {Array.from({ length: totalSteps }).map((_, i) => (
             <View
               key={i}
               style={{
@@ -71,7 +70,7 @@ export function StepHeader() {
                 height: 3,
                 borderRadius: 2,
                 backgroundColor:
-                  i < currentStep ? theme.colors.orange : theme.colors.borderSoft,
+                  i < displayStep ? theme.colors.orange : theme.colors.borderSoft,
               }}
             />
           ))}

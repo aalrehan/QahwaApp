@@ -153,6 +153,7 @@ export function isStepValid(step: number, data: LogFormData): boolean {
         (data.aromaIntensity ?? 0) >= 1
       );
     case 4:
+      // Only reached when brewMethod === 'إسبريسو' (skipped otherwise via getNextStep).
       return (data.cremaRating ?? 0) >= 1 && !!data.cremaColor;
     case 5:
       return data.flavorNoteIds.length >= 1;
@@ -165,4 +166,32 @@ export function isStepValid(step: number, data: LogFormData): boolean {
     default:
       return false;
   }
+}
+
+// Crema is a physical property of espresso only. Step 4 (Visual/Crema) is
+// conditionally skipped for non-espresso brew methods.
+export function isEspresso(brewMethod: string): boolean {
+  return brewMethod.trim() === 'إسبريسو';
+}
+
+export function getNextStep(step: number, data: LogFormData): number {
+  if (step === 3 && !isEspresso(data.brewMethod)) return 5;
+  return step + 1;
+}
+
+export function getPrevStep(step: number, data: LogFormData): number {
+  if (step === 5 && !isEspresso(data.brewMethod)) return 3;
+  return step - 1;
+}
+
+// For StepHeader: visual step counter that hides Step 4 from the count
+// when the user is on a non-espresso flow.
+export function getDisplayStep(
+  step: number,
+  brewMethod: string,
+): { displayStep: number; totalSteps: number } {
+  const espresso = isEspresso(brewMethod);
+  const totalSteps = espresso ? 6 : 5;
+  const displayStep = espresso ? step : step > 4 ? step - 1 : step;
+  return { displayStep, totalSteps };
 }

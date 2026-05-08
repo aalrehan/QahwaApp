@@ -1,10 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, Text, View } from 'react-native';
 
-import { isStepValid, useLogForm } from '@/lib/log-form-context';
+import {
+  getNextStep,
+  getPrevStep,
+  isStepValid,
+  useLogForm,
+} from '@/lib/log-form-context';
 import { theme } from '@/lib/theme';
 
-const TOTAL_STEPS = 6;
+const FINAL_STEP = 6;
 
 type Props = {
   onSubmit?: () => void;
@@ -14,7 +19,7 @@ type Props = {
 export function StepFooter({ onSubmit, submitting = false }: Props) {
   const { currentStep, formData, setStep } = useLogForm();
   const valid = isStepValid(currentStep, formData);
-  const isFinalStep = currentStep === TOTAL_STEPS;
+  const isFinalStep = currentStep === FINAL_STEP;
   const showBack = currentStep > 1 && !submitting;
 
   function handleNext() {
@@ -24,12 +29,12 @@ export function StepFooter({ onSubmit, submitting = false }: Props) {
       onSubmit?.();
       return;
     }
-    setStep(currentStep + 1);
+    setStep(getNextStep(currentStep, formData));
   }
 
   function handleBack() {
     if (submitting) return;
-    if (currentStep > 1) setStep(currentStep - 1);
+    if (currentStep > 1) setStep(getPrevStep(currentStep, formData));
   }
 
   const buttonDisabled = !valid || submitting;

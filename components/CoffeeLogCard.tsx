@@ -603,14 +603,11 @@ export function CoffeeLogCard({ log, variant }: Props) {
             flexDirection: 'row',
             justifyContent: 'center',
             alignSelf: 'center',
-            gap: 32,
+            gap: 48,
           }}
         >
           <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
             <Feather name="heart" size={22} color={theme.colors.muted} />
-          </Pressable>
-          <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
-            <Feather name="message-circle" size={22} color={theme.colors.muted} />
           </Pressable>
           <Pressable onPress={comingSoon} hitSlop={6} style={{ padding: 8, alignItems: 'center' }}>
             <Feather name="share-2" size={22} color={theme.colors.muted} />

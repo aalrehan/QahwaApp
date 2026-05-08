@@ -409,7 +409,22 @@ export function Step1Setup() {
             return (
               <Pressable
                 key={method}
-                onPress={() => updateData({ brewMethod: selected ? '' : method })}
+                onPress={() => {
+                  const nextBrew = selected ? '' : method;
+                  // Clear crema data when leaving espresso. Step 4 is only
+                  // reached for espresso, so stale crema values must not
+                  // survive a brew-method change to a non-espresso option.
+                  const clearsCrema = nextBrew !== 'إسبريسو';
+                  updateData(
+                    clearsCrema
+                      ? {
+                          brewMethod: nextBrew,
+                          cremaRating: undefined,
+                          cremaColor: undefined,
+                        }
+                      : { brewMethod: nextBrew },
+                  );
+                }}
                 style={[styles.chip, selected && styles.chipSelected]}
               >
                 <Text style={[styles.chipText, selected && styles.chipTextSelected]}>

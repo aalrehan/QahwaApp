@@ -105,6 +105,7 @@ function FormHost() {
       photo_url: null,
       aroma_notes: (formData.aromaNotes ?? '').trim() || null,
       aroma_intensity: formData.aromaIntensity ?? null,
+      // Crema fields are null for non-espresso brew methods (Step 4 is skipped).
       crema_rating: formData.cremaRating ?? null,
       crema_color: formData.cremaColor ?? null,
       body: formData.body ?? null,
