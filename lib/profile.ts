@@ -43,26 +43,8 @@ export function useProfile(userId: string | null | undefined): ProfileState {
   useEffect(() => {
     setLoading(true);
     fetch();
-
-    if (!userId) return;
-
-    const channel = supabase
-      .channel(`profile:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${userId}`,
-        },
-        () => { fetch(); },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // No realtime subscription: profile data changes only when the user
+    // explicitly edits it, and the edit screen calls refetch() on save.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
