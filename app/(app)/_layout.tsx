@@ -67,6 +67,14 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen name="profile-setup" />
+      <Stack.Screen
+        name="edit-profile"
+        options={{
+          animation: 'slide_from_right',
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+        }}
+      />
     </Stack>
   );
 }

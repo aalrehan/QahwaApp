@@ -89,3 +89,16 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
   if (error) throw error;
   return data === null;
 }
+
+export type ProfileUpdate = {
+  display_name_ar?: string;
+  display_name?: string | null;
+  username?: string;
+  city?: string;
+  bio?: string | null;
+};
+
+export async function updateProfile(userId: string, data: ProfileUpdate): Promise<void> {
+  const { error } = await supabase.from('profiles').update(data).eq('id', userId);
+  if (error) throw error;
+}

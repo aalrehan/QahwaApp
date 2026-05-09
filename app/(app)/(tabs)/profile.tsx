@@ -1,8 +1,8 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   Text,
@@ -208,8 +208,15 @@ function MiniLogCard({ log }: { log: RecentLog }) {
 
 export default function ProfileTab() {
   const { user } = useSession();
-  const { profile, loading: profileLoading } = useProfile(user?.id);
+  const { profile, loading: profileLoading, refetch: refetchProfile } = useProfile(user?.id);
   const stats = useProfileStats(user?.id);
+
+  // Refetch on focus so changes from edit-profile are reflected immediately.
+  useFocusEffect(
+    useCallback(() => {
+      void refetchProfile();
+    }, [refetchProfile]),
+  );
 
   const initial = profile?.display_name_ar?.trim().charAt(0) ?? '';
 
@@ -459,9 +466,7 @@ export default function ProfileTab() {
         {/* SECTION 6: ACTIONS */}
         <View style={{ marginTop: 40, marginHorizontal: 16, gap: 12 }}>
           <Pressable
-            onPress={() =>
-              Alert.alert('قريباً', 'تعديل الملف الشخصي سيكون متاحاً قريباً')
-            }
+            onPress={() => router.push('/(app)/edit-profile')}
             style={{
               backgroundColor: theme.colors.surface,
               borderWidth: 1,
