@@ -166,6 +166,7 @@ export function Step6Final() {
           numberOfLines={3}
           textAlignVertical="top"
           maxLength={NOTES_MAX}
+          blurOnSubmit={false}
           style={{
             backgroundColor: theme.colors.surface,
             borderWidth: 1,

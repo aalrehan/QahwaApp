@@ -8,6 +8,8 @@ import { useEffect } from 'react';
 import { I18nManager } from 'react-native';
 import 'react-native-reanimated';
 
+import { theme } from '@/lib/theme';
+
 SplashScreen.preventAutoHideAsync();
 
 I18nManager.allowRTL(true);
@@ -42,7 +44,7 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="dark" />
+      <StatusBar style="dark" backgroundColor={theme.colors.bg} />
     </>
   );
 }

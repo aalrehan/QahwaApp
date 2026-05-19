@@ -384,6 +384,7 @@ export default function EditProfileScreen() {
         <ScrollView
           contentContainerStyle={{ paddingBottom: 48 }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <LogoRow />
 

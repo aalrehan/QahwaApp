@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { theme } from '@/lib/theme';
 
@@ -8,9 +8,10 @@ type Props = {
   title: string;
   subtitle: string;
   actionLabel?: string;
+  onActionPress?: () => void;
 };
 
-export function EmptyState({ icon, title, subtitle, actionLabel }: Props) {
+export function EmptyState({ icon, title, subtitle, actionLabel, onActionPress }: Props) {
   return (
     <View
       style={{
@@ -44,19 +45,45 @@ export function EmptyState({ icon, title, subtitle, actionLabel }: Props) {
       >
         {subtitle}
       </Text>
-      {actionLabel && (
-        <Text
-          style={{
-            color: theme.colors.orange,
-            fontSize: 13,
-            fontFamily: theme.fonts.arabicBody.medium,
-            marginTop: 12,
-            textAlign: 'center',
-          }}
-        >
-          {actionLabel}
-        </Text>
-      )}
+      {actionLabel ? (
+        onActionPress ? (
+          <Pressable
+            onPress={onActionPress}
+            android_ripple={{ color: theme.colors.surface2, borderless: false }}
+            style={{
+              marginTop: 20,
+              alignSelf: 'center',
+              backgroundColor: theme.colors.orange,
+              borderRadius: 12,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+            }}
+          >
+            <Text
+              style={{
+                color: theme.colors.surface,
+                fontSize: 15,
+                fontFamily: theme.fonts.arabicBody.medium,
+                textAlign: 'center',
+              }}
+            >
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ) : (
+          <Text
+            style={{
+              color: theme.colors.orange,
+              fontSize: 13,
+              fontFamily: theme.fonts.arabicBody.medium,
+              marginTop: 12,
+              textAlign: 'center',
+            }}
+          >
+            {actionLabel}
+          </Text>
+        )
+      ) : null}
     </View>
   );
 }

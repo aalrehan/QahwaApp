@@ -4,6 +4,9 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -109,6 +112,7 @@ function SearchBar({
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
+        onSubmitEditing={() => Keyboard.dismiss()}
       />
       {query.length > 0 ? (
         <Pressable onPress={() => onChangeQuery('')} hitSlop={8} style={{ marginEnd: 10 }}>
@@ -287,6 +291,7 @@ function SearchView({ onSelectCafe }: { onSelectCafe: (cafe: CafeWithCount) => v
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
     >
       <LogoRow />
 
@@ -483,11 +488,16 @@ export default function DiscoverTab() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF7F2' }} edges={['top']}>
-      {selectedCafe ? (
-        <CafeLogsView cafe={selectedCafe} onBack={() => setSelectedCafe(null)} />
-      ) : (
-        <SearchView onSelectCafe={setSelectedCafe} />
-      )}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        {selectedCafe ? (
+          <CafeLogsView cafe={selectedCafe} onBack={() => setSelectedCafe(null)} />
+        ) : (
+          <SearchView onSelectCafe={setSelectedCafe} />
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

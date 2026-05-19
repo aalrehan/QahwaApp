@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, Text, View } from 'react-native';
 
@@ -26,6 +27,11 @@ export function StepFooter({ onSubmit, submitting = false, isEditing = false }: 
   function handleNext() {
     if (submitting) return;
     if (!valid) return;
+    try {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // ignore
+    }
     if (isFinalStep) {
       onSubmit?.();
       return;
@@ -35,7 +41,14 @@ export function StepFooter({ onSubmit, submitting = false, isEditing = false }: 
 
   function handleBack() {
     if (submitting) return;
-    if (currentStep > 1) setStep(getPrevStep(currentStep, formData));
+    if (currentStep > 1) {
+      try {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // ignore
+      }
+      setStep(getPrevStep(currentStep, formData));
+    }
   }
 
   const buttonDisabled = !valid || submitting;

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRef } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 
@@ -22,6 +23,11 @@ export function StarRating({
   const scales = useRef(STAR_INDICES.map(() => new Animated.Value(1))).current;
 
   function handlePress(index: number) {
+    try {
+      void Haptics.selectionAsync();
+    } catch {
+      // ignore — unsupported device
+    }
     const anim = scales[index - 1];
     Animated.sequence([
       Animated.timing(anim, {

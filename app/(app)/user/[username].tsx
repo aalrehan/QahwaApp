@@ -576,6 +576,7 @@ export default function PublicProfileScreen() {
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const liked = likedLogIds.has(item.id);
           return (
@@ -610,7 +611,7 @@ export default function PublicProfileScreen() {
           <EmptyState
             icon="coffee"
             title="لا توجد قهوات بعد"
-            subtitle="لم يسجل هذا المستخدم أي قهوة بعد"
+            subtitle="لم ينشر هذا المستخدم أي تسجيلات"
           />
         }
       />

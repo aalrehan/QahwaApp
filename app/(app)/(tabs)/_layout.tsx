@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Tabs } from 'expo-router';
 import { Pressable, View } from 'react-native';
@@ -10,7 +11,14 @@ function CustomLogButton() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-start' }}>
       <Pressable
-        onPress={() => router.push('/(app)/log/new')}
+        onPress={() => {
+          try {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } catch {
+            // ignore
+          }
+          router.push('/(app)/log/new');
+        }}
         hitSlop={8}
         style={{
           width: 56,
@@ -46,7 +54,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.brown,
-        tabBarInactiveTintColor: theme.colors.muted,
+        tabBarInactiveTintColor: theme.colors.dim,
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopWidth: 1,

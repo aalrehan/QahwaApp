@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -190,6 +191,8 @@ export function Step1Setup() {
           placeholder="ابحث عن مقهاك"
           placeholderTextColor={theme.colors.dim}
           editable={!showCreateForm}
+          returnKeyType="search"
+          onSubmitEditing={() => Keyboard.dismiss()}
           style={[styles.input, { textAlign: 'right' }]}
         />
 
@@ -274,6 +277,8 @@ export function Step1Setup() {
               placeholderTextColor={theme.colors.dim}
               maxLength={80}
               editable={!savingNewCafe}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
               style={[styles.input, { textAlign: 'right' }]}
             />
 
@@ -394,6 +399,8 @@ export function Step1Setup() {
           placeholderTextColor={theme.colors.dim}
           autoCapitalize="none"
           maxLength={100}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
           style={[styles.input, { textAlign: 'right' }]}
         />
 

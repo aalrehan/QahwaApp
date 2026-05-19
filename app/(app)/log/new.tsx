@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -138,12 +141,37 @@ function FormHost({ editId }: { editId?: string }) {
 
   useEffect(() => {
     if (phase !== 'success') return;
+    try {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // ignore
+    }
     const t = setTimeout(() => {
       reset();
       setPhase('form');
       router.dismiss();
     }, 1500);
     return () => clearTimeout(t);
+  }, [phase, reset]);
+
+  // Android hardware back: same discard alert as the close button.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (phase !== 'form') return false;
+      Alert.alert('هل تريد إلغاء التسجيل؟', '', [
+        { text: 'متابعة التسجيل', style: 'cancel' },
+        {
+          text: 'إلغاء',
+          style: 'destructive',
+          onPress: () => {
+            reset();
+            router.dismiss();
+          },
+        },
+      ]);
+      return true;
+    });
+    return () => sub.remove();
   }, [phase, reset]);
 
   async function handleSubmit() {

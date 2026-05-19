@@ -54,6 +54,7 @@ export function Step2Cup() {
           numberOfLines={4}
           textAlignVertical="top"
           maxLength={MAX_LENGTH}
+          blurOnSubmit={false}
           style={{
             backgroundColor: theme.colors.surface,
             borderWidth: 1,

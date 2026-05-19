@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/EmptyState';
 import { ShareableCoffeeLogCard } from '@/components/ShareableCoffeeLogCard';
+import { SkeletonCard } from '@/components/SkeletonCard';
 import { useFeed } from '@/lib/feed';
 import { theme } from '@/lib/theme';
 
@@ -91,26 +92,9 @@ export default function FeedTab() {
         edges={['top']}
       >
         <FeedHeader />
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: -40,
-          }}
-        >
-          <ActivityIndicator size="large" color={theme.colors.brown} />
-          <Text
-            style={{
-              marginTop: 12,
-              fontSize: 13,
-              fontFamily: theme.fonts.arabicBody.regular,
-              color: theme.colors.muted,
-            }}
-          >
-            جارٍ التحميل...
-          </Text>
-        </View>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
       </SafeAreaView>
     );
   }
@@ -174,6 +158,7 @@ export default function FeedTab() {
       <FlatList
         data={feed.logs}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const liked = feed.likedLogIds.has(item.id);
           return (
@@ -202,8 +187,7 @@ export default function FeedTab() {
             <EmptyState
               icon="coffee"
               title="لا توجد قهوات بعد"
-              subtitle="ابدأ بتسجيل قهوتك الأولى لرؤيتها هنا"
-              actionLabel="اضغط +"
+              subtitle="كن أول من يشارك تجربته"
             />
           ) : null
         }

@@ -1,7 +1,16 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useRef } from 'react';
 import { Alert, Animated, Pressable, Text, View } from 'react-native';
+
+function triggerHaptic(fn: () => Promise<unknown>) {
+  try {
+    void fn();
+  } catch {
+    // Devices without haptics support — silently ignore.
+  }
+}
 
 import {
   CREMA_COLORS_BY_ID,
@@ -249,6 +258,9 @@ function LikeButton({
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   function handlePress() {
+    triggerHaptic(() =>
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+    );
     Animated.spring(scaleAnim, {
       toValue: 1.3,
       useNativeDriver: true,
@@ -347,6 +359,8 @@ export function CoffeeLogCard({
         }}
       >
         <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
           style={{
             fontFamily: theme.fonts.arabicDisplay.semibold,
             fontSize: 17,
@@ -427,6 +441,8 @@ export function CoffeeLogCard({
         }}
       >
         <Text
+          numberOfLines={2}
+          ellipsizeMode="tail"
           style={{
             fontFamily: theme.fonts.arabicDisplay.bold,
             fontSize: 26,

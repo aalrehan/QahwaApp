@@ -232,7 +232,10 @@ export default function ProfileTab() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* SECTION 1: LOGO */}
         <LogoRow />
 

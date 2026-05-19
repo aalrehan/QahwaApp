@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -323,6 +324,11 @@ export default function LogDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           if (!user) return;
+          try {
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch {
+            // ignore
+          }
           setDeleting(true);
           const { error: delErr } = await supabase
             .from('coffee_logs')

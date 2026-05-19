@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/EmptyState';
 import { ShareableCoffeeLogCard } from '@/components/ShareableCoffeeLogCard';
+import { SkeletonCard } from '@/components/SkeletonCard';
 import { useSession } from '@/lib/auth';
 import { useFeed } from '@/lib/feed';
 import { supabase } from '@/lib/supabase';
@@ -145,26 +146,9 @@ export default function DiaryTab() {
         edges={['top']}
       >
         <DiaryHeader />
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: -40,
-          }}
-        >
-          <ActivityIndicator size="large" color={theme.colors.brown} />
-          <Text
-            style={{
-              marginTop: 12,
-              fontSize: 13,
-              fontFamily: theme.fonts.arabicBody.regular,
-              color: theme.colors.muted,
-            }}
-          >
-            جارٍ التحميل...
-          </Text>
-        </View>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
       </SafeAreaView>
     );
   }
@@ -228,6 +212,7 @@ export default function DiaryTab() {
       <FlatList
         data={feed.logs}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const liked = feed.likedLogIds.has(item.id);
           return (
@@ -257,8 +242,9 @@ export default function DiaryTab() {
             <EmptyState
               icon="book-open"
               title="مفكرتك فارغة"
-              subtitle="ابدأ بتسجيل قهواتك"
-              actionLabel="اضغط +"
+              subtitle="ابدأ بتسجيل قهوتك الأولى"
+              actionLabel="سجّل الآن"
+              onActionPress={() => router.push('/(app)/log/new')}
             />
           ) : null
         }
