@@ -75,6 +75,7 @@ export default function AppLayout() {
           gestureDirection: 'horizontal',
         }}
       />
+      <Stack.Screen name="user/[username]" options={{ headerShown: false }} />
     </Stack>
   );
 }

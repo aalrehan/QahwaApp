@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useRef } from 'react';
 import { Alert, Animated, Pressable, Text, View } from 'react-native';
 
@@ -391,17 +392,29 @@ export function CoffeeLogCard({
           {formatArabicRelative(log.created_at)}
         </Text>
         {variant === 'feed' && log.profile?.username ? (
-          <Text
-            style={{
-              marginTop: 4,
-              fontFamily: theme.fonts.arabicBody.medium,
-              fontSize: 11,
-              color: theme.colors.muted,
-              textAlign: 'center',
-            }}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(app)/user/[username]',
+                params: { username: log.profile!.username },
+              })
+            }
+            onStartShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
+            hitSlop={6}
+            style={{ marginTop: 4 }}
           >
-            @{log.profile.username}
-          </Text>
+            <Text
+              style={{
+                fontFamily: theme.fonts.arabicBody.medium,
+                fontSize: 11,
+                color: theme.colors.muted,
+                textAlign: 'center',
+              }}
+            >
+              @{log.profile.username}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
 
