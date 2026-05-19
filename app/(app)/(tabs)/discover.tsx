@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -16,8 +17,6 @@ import { useCafeLogs, useCafeSearch, useTopCafes } from '@/lib/discover';
 import type { CafeWithCount } from '@/lib/discover';
 import { theme } from '@/lib/theme';
 
-// ─── Logo row (same as other tabs) ───────────────────────────────────────────
-
 function LogoRow() {
   return (
     <View
@@ -25,7 +24,8 @@ function LogoRow() {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 20,
+        marginTop: 16,
+        marginBottom: 20,
       }}
     >
       <Text
@@ -66,34 +66,128 @@ function LogoRow() {
   );
 }
 
-// ─── Cafe row card ────────────────────────────────────────────────────────────
+function SearchBar({
+  query,
+  onChangeQuery,
+}: {
+  query: string;
+  onChangeQuery: (q: string) => void;
+}) {
+  return (
+    <View
+      style={{
+        marginHorizontal: 20,
+        marginBottom: 28,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E8DDD0',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        shadowColor: '#6B3A1F',
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+      }}
+    >
+      <TextInput
+        value={query}
+        onChangeText={onChangeQuery}
+        placeholder="ابحث عن مقهى..."
+        placeholderTextColor="#B5A595"
+        style={{
+          flex: 1,
+          fontFamily: theme.fonts.arabicBody.regular,
+          fontSize: 15,
+          color: '#2A1F15',
+          textAlign: 'right',
+          padding: 0,
+        }}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="search"
+      />
+      {query.length > 0 ? (
+        <Pressable onPress={() => onChangeQuery('')} hitSlop={8} style={{ marginEnd: 10 }}>
+          <Feather name="x" size={18} color="#8B7355" />
+        </Pressable>
+      ) : (
+        <Feather name="search" size={20} color="#8B7355" style={{ marginEnd: 10 }} />
+      )}
+    </View>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 16,
+      }}
+    >
+      <View style={{ width: 24 }} />
+      <Text
+        style={{
+          fontFamily: theme.fonts.arabicDisplay.semibold,
+          fontSize: 17,
+          color: '#6B3A1F',
+          textAlign: 'right',
+        }}
+      >
+        {title}
+      </Text>
+    </View>
+  );
+}
 
 function CafeCard({ cafe, onPress }: { cafe: CafeWithCount; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        marginHorizontal: 16,
-        marginBottom: 10,
-        backgroundColor: pressed ? theme.colors.surface2 : theme.colors.surface,
+        backgroundColor: pressed ? '#F4E8D8' : '#FFFFFF',
         borderWidth: 1,
-        borderColor: theme.colors.borderSoft,
-        borderRadius: 14,
-        padding: 16,
+        borderColor: '#E8DDD0',
+        borderRadius: 20,
+        padding: 18,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: '#6B3A1F',
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
       })}
     >
-      {/* Chevron on the left since layout is RTL */}
-      <Feather name="chevron-left" size={16} color={theme.colors.dim} style={{ marginLeft: 4 }} />
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: '#F4E8D8',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Feather name="chevron-left" size={16} color="#6B3A1F" />
+      </View>
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, alignItems: 'flex-end' }}>
         <Text
           style={{
-            fontFamily: theme.fonts.arabicDisplay.semibold,
-            fontSize: 15,
-            color: theme.colors.brownDeep,
+            fontFamily: theme.fonts.arabicDisplay.bold,
+            fontSize: 17,
+            color: '#4A2410',
             textAlign: 'right',
+            marginBottom: 6,
           }}
         >
           {cafe.name_ar}
@@ -101,49 +195,83 @@ function CafeCard({ cafe, onPress }: { cafe: CafeWithCount; onPress: () => void 
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
             justifyContent: 'flex-end',
-            marginTop: 4,
-            gap: 6,
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          <Text
-            style={{
-              fontFamily: theme.fonts.arabicBody.regular,
-              fontSize: 12,
-              color: theme.colors.muted,
-            }}
-          >
-            {cafe.log_count} سجل
-          </Text>
           {cafe.city ? (
             <>
-              <View
-                style={{
-                  width: 3,
-                  height: 3,
-                  borderRadius: 2,
-                  backgroundColor: theme.colors.dim,
-                }}
-              />
               <Text
                 style={{
                   fontFamily: theme.fonts.arabicBody.regular,
                   fontSize: 12,
-                  color: theme.colors.muted,
+                  color: '#8B7355',
+                  textAlign: 'right',
                 }}
               >
                 {cafe.city}
               </Text>
+              <Text
+                style={{
+                  fontFamily: theme.fonts.arabicBody.regular,
+                  fontSize: 12,
+                  color: '#B5A595',
+                  textAlign: 'right',
+                }}
+              >
+                ·
+              </Text>
             </>
           ) : null}
+          <View
+            style={{
+              backgroundColor: '#F4E8D8',
+              borderRadius: 10,
+              paddingHorizontal: 10,
+              paddingVertical: 3,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: theme.fonts.arabicBody.medium,
+                fontSize: 12,
+                color: '#6B3A1F',
+                textAlign: 'right',
+              }}
+            >
+              {`${cafe.log_count} سجل`}
+            </Text>
+          </View>
         </View>
       </View>
     </Pressable>
   );
 }
 
-// ─── Search / Top-cafes list view ─────────────────────────────────────────────
+function NoResults({ query }: { query: string }) {
+  return (
+    <View
+      style={{
+        marginTop: 60,
+        alignItems: 'center',
+        paddingHorizontal: 32,
+      }}
+    >
+      <Feather name="search" size={44} color="#B5A595" style={{ marginBottom: 16 }} />
+      <Text
+        style={{
+          fontFamily: theme.fonts.arabicDisplay.medium,
+          fontSize: 16,
+          color: '#8B7355',
+          textAlign: 'center',
+        }}
+      >
+        {`لا توجد نتائج لـ «${query}»`}
+      </Text>
+    </View>
+  );
+}
 
 function SearchView({ onSelectCafe }: { onSelectCafe: (cafe: CafeWithCount) => void }) {
   const [query, setQuery] = useState('');
@@ -155,120 +283,51 @@ function SearchView({ onSelectCafe }: { onSelectCafe: (cafe: CafeWithCount) => v
   const isLoading = isSearching ? searchLoading : topLoading;
 
   return (
-    <FlatList
-      data={displayCafes}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <CafeCard cafe={item} onPress={() => onSelectCafe(item)} />
-      )}
-      ListHeaderComponent={
-        <View>
-          <LogoRow />
-
-          {/* Search bar */}
-          <View
-            style={{
-              marginHorizontal: 16,
-              marginTop: 24,
-              marginBottom: 8,
-              backgroundColor: theme.colors.surface,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 14,
-              gap: 10,
-            }}
-          >
-            {query.length > 0 ? (
-              <Pressable onPress={() => setQuery('')} hitSlop={8}>
-                <Feather name="x" size={16} color={theme.colors.muted} />
-              </Pressable>
-            ) : (
-              <Feather name="search" size={16} color={theme.colors.muted} />
-            )}
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="ابحث عن مقهى..."
-              placeholderTextColor={theme.colors.dim}
-              style={{
-                flex: 1,
-                fontFamily: theme.fonts.arabicBody.regular,
-                fontSize: 15,
-                color: theme.colors.text,
-                textAlign: 'right',
-                paddingVertical: 12,
-              }}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-            />
-          </View>
-
-          {/* Section heading */}
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              paddingHorizontal: 20,
-              marginTop: 20,
-              marginBottom: 12,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: theme.fonts.arabicDisplay.semibold,
-                fontSize: 16,
-                color: theme.colors.brown,
-              }}
-            >
-              {isSearching ? 'نتائج البحث' : 'المقاهي الأكثر نشاطاً'}
-            </Text>
-          </View>
-
-          {isLoading ? (
-            <ActivityIndicator
-              color={theme.colors.brown}
-              style={{ marginVertical: 24 }}
-            />
-          ) : null}
-        </View>
-      }
-      ListEmptyComponent={
-        !isLoading ? (
-          <View
-            style={{
-              alignItems: 'center',
-              paddingVertical: 32,
-              paddingHorizontal: 32,
-            }}
-          >
-            <Feather name="coffee" size={32} color={theme.colors.dim} />
-            <Text
-              style={{
-                marginTop: 12,
-                fontFamily: theme.fonts.arabicBody.regular,
-                fontSize: 14,
-                color: theme.colors.muted,
-                textAlign: 'center',
-              }}
-            >
-              {isSearching ? 'لا توجد مقاهٍ بهذا الاسم' : 'لا توجد مقاهٍ بعد'}
-            </Text>
-          </View>
-        ) : null
-      }
+    <ScrollView
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-    />
+    >
+      <LogoRow />
+
+      <SearchBar query={query} onChangeQuery={setQuery} />
+
+      <SectionHeader title={isSearching ? 'نتائج البحث' : 'المقاهي الأكثر نشاطاً'} />
+
+      {isLoading ? (
+        <ActivityIndicator color="#6B3A1F" style={{ marginVertical: 24 }} />
+      ) : displayCafes.length === 0 ? (
+        isSearching ? (
+          <NoResults query={query} />
+        ) : (
+          <View style={{ marginTop: 40, alignItems: 'center', paddingHorizontal: 32 }}>
+            <Feather name="coffee" size={44} color="#B5A595" style={{ marginBottom: 16 }} />
+            <Text
+              style={{
+                fontFamily: theme.fonts.arabicDisplay.medium,
+                fontSize: 16,
+                color: '#8B7355',
+                textAlign: 'center',
+              }}
+            >
+              لا توجد مقاهٍ بعد
+            </Text>
+          </View>
+        )
+      ) : (
+        <View style={{ paddingHorizontal: 16, gap: 12 }}>
+          {displayCafes.map((cafe) => (
+            <CafeCard
+              key={cafe.id}
+              cafe={cafe}
+              onPress={() => onSelectCafe(cafe)}
+            />
+          ))}
+        </View>
+      )}
+    </ScrollView>
   );
 }
-
-// ─── Per-cafe log browser ─────────────────────────────────────────────────────
 
 function CafeLogsView({
   cafe,
@@ -307,35 +366,34 @@ function CafeLogsView({
       }}
       ListHeaderComponent={
         <View>
-          {/* Back + cafe name header */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
+              justifyContent: 'space-between',
               paddingHorizontal: 16,
               paddingTop: 16,
               paddingBottom: 4,
             }}
           >
-            <Pressable onPress={onBack} hitSlop={12} style={{ padding: 4 }}>
-              <Feather name="arrow-left" size={22} color={theme.colors.brown} />
-            </Pressable>
+            <View style={{ width: 30 }} />
             <Text
               style={{
                 flex: 1,
                 fontFamily: theme.fonts.arabicDisplay.bold,
                 fontSize: 18,
-                color: theme.colors.brown,
+                color: '#6B3A1F',
                 textAlign: 'center',
-                marginRight: 30, // balance the back button
               }}
               numberOfLines={1}
             >
               {cafe.name_ar}
             </Text>
+            <Pressable onPress={onBack} hitSlop={12} style={{ padding: 4 }}>
+              <Feather name="arrow-right" size={22} color="#6B3A1F" />
+            </Pressable>
           </View>
 
-          {/* City + log count pill */}
           <View
             style={{
               flexDirection: 'row',
@@ -345,43 +403,42 @@ function CafeLogsView({
               marginBottom: 16,
             }}
           >
-            <Text
-              style={{
-                fontFamily: theme.fonts.arabicBody.regular,
-                fontSize: 12,
-                color: theme.colors.muted,
-              }}
-            >
-              {cafe.log_count} سجل قهوة
-            </Text>
             {cafe.city ? (
               <>
+                <Text
+                  style={{
+                    fontFamily: theme.fonts.arabicBody.regular,
+                    fontSize: 12,
+                    color: '#8B7355',
+                    textAlign: 'right',
+                  }}
+                >
+                  {cafe.city}
+                </Text>
                 <View
                   style={{
                     width: 3,
                     height: 3,
                     borderRadius: 2,
-                    backgroundColor: theme.colors.dim,
+                    backgroundColor: '#B5A595',
                   }}
                 />
-                <Text
-                  style={{
-                    fontFamily: theme.fonts.arabicBody.regular,
-                    fontSize: 12,
-                    color: theme.colors.muted,
-                  }}
-                >
-                  {cafe.city}
-                </Text>
               </>
             ) : null}
+            <Text
+              style={{
+                fontFamily: theme.fonts.arabicBody.regular,
+                fontSize: 12,
+                color: '#8B7355',
+                textAlign: 'right',
+              }}
+            >
+              {`${cafe.log_count} سجل قهوة`}
+            </Text>
           </View>
 
           {loading && logs.length === 0 ? (
-            <ActivityIndicator
-              color={theme.colors.brown}
-              style={{ marginVertical: 40 }}
-            />
+            <ActivityIndicator color="#6B3A1F" style={{ marginVertical: 40 }} />
           ) : null}
         </View>
       }
@@ -394,13 +451,13 @@ function CafeLogsView({
               paddingHorizontal: 32,
             }}
           >
-            <Feather name="coffee" size={32} color={theme.colors.dim} />
+            <Feather name="coffee" size={32} color="#B5A595" />
             <Text
               style={{
                 marginTop: 12,
                 fontFamily: theme.fonts.arabicBody.regular,
                 fontSize: 14,
-                color: theme.colors.muted,
+                color: '#8B7355',
                 textAlign: 'center',
               }}
             >
@@ -411,7 +468,7 @@ function CafeLogsView({
       }
       ListFooterComponent={
         loading && logs.length > 0 ? (
-          <ActivityIndicator color={theme.colors.brown} style={{ padding: 20 }} />
+          <ActivityIndicator color="#6B3A1F" style={{ padding: 20 }} />
         ) : null
       }
       contentContainerStyle={{ paddingBottom: 40 }}
@@ -421,13 +478,11 @@ function CafeLogsView({
   );
 }
 
-// ─── Main tab ─────────────────────────────────────────────────────────────────
-
 export default function DiscoverTab() {
   const [selectedCafe, setSelectedCafe] = useState<CafeWithCount | null>(null);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF7F2' }} edges={['top']}>
       {selectedCafe ? (
         <CafeLogsView cafe={selectedCafe} onBack={() => setSelectedCafe(null)} />
       ) : (
