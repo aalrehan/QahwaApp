@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -390,28 +391,54 @@ export default function EditProfileScreen() {
 
           {/* AVATAR */}
           <View style={{ marginTop: 24, alignItems: 'center' }}>
-            <View
-              style={{
-                width: 88,
-                height: 88,
-                borderRadius: 44,
-                backgroundColor: theme.colors.surface2,
-                borderWidth: 2,
-                borderColor: theme.colors.border,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text
+            <View style={{ width: 88, height: 88 }}>
+              <LinearGradient
+                colors={['#E8854A', '#6B3A1F']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
-                  fontFamily: theme.fonts.arabicDecorative.bold,
-                  fontSize: 32,
-                  color: theme.colors.brown,
-                  includeFontPadding: false,
+                  width: 88,
+                  height: 88,
+                  borderRadius: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: theme.colors.border,
                 }}
               >
-                {initial}
-              </Text>
+                <Text
+                  style={{
+                    fontFamily: theme.fonts.arabicDecorative.bold,
+                    fontSize: 32,
+                    color: '#FFFFFF',
+                    includeFontPadding: false,
+                  }}
+                >
+                  {initial || '؟'}
+                </Text>
+              </LinearGradient>
+              {/* Camera overlay — bottom-left (visual bottom-right in RTL). */}
+              <Pressable
+                hitSlop={8}
+                onPress={() =>
+                  Alert.alert('قريباً', 'رفع الصور سيكون متاحاً قريباً')
+                }
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: theme.colors.orange,
+                  borderWidth: 2,
+                  borderColor: '#FFFFFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Feather name="camera" size={13} color="#FFFFFF" />
+              </Pressable>
             </View>
             <Pressable
               hitSlop={8}

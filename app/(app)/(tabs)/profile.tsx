@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import {
@@ -241,30 +242,32 @@ export default function ProfileTab() {
 
         {/* SECTION 2: PROFILE HEADER */}
         <View style={{ marginTop: 32, alignItems: 'center', paddingHorizontal: 24 }}>
-          <View
+          <LinearGradient
+            colors={['#E8854A', '#6B3A1F']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={{
               width: 88,
               height: 88,
               borderRadius: 44,
-              backgroundColor: theme.colors.surface2,
-              borderWidth: 2,
-              borderColor: theme.colors.border,
               alignItems: 'center',
               justifyContent: 'center',
               alignSelf: 'center',
+              borderWidth: 2,
+              borderColor: theme.colors.border,
             }}
           >
             <Text
               style={{
                 fontFamily: theme.fonts.arabicDecorative.bold,
                 fontSize: 32,
-                color: theme.colors.brown,
+                color: '#FFFFFF',
                 includeFontPadding: false,
               }}
             >
-              {initial}
+              {initial || '؟'}
             </Text>
-          </View>
+          </LinearGradient>
 
           <Text
             style={{

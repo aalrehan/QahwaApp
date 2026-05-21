@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,13 +16,56 @@ import { SkeletonCard } from '@/components/SkeletonCard';
 import { useFeed } from '@/lib/feed';
 import { theme } from '@/lib/theme';
 
-function FeedHeader() {
+function FilterPill({
+  label,
+  active,
+  activeColor,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  activeColor: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginHorizontal: 4,
+        backgroundColor: active ? activeColor : theme.colors.surface,
+        borderWidth: active ? 0 : 1,
+        borderColor: theme.colors.borderSoft,
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: theme.fonts.arabicBody.medium,
+          fontSize: 13,
+          color: active ? '#FFFFFF' : theme.colors.muted,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function FeedHeader({
+  excludeSelf,
+  onChange,
+}: {
+  excludeSelf: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <View
       style={{
         alignItems: 'center',
         paddingTop: 16,
-        paddingBottom: 24,
+        paddingBottom: 16,
       }}
     >
       <View
@@ -67,12 +110,36 @@ function FeedHeader() {
           QAHWA
         </Text>
       </View>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'center',
+          paddingHorizontal: 20,
+          marginTop: 20,
+          marginBottom: 8,
+        }}
+      >
+        <FilterPill
+          label="الجميع"
+          active={!excludeSelf}
+          activeColor={theme.colors.orange}
+          onPress={() => onChange(false)}
+        />
+        <FilterPill
+          label="الآخرون"
+          active={excludeSelf}
+          activeColor={theme.colors.brown}
+          onPress={() => onChange(true)}
+        />
+      </View>
     </View>
   );
 }
 
 export default function FeedTab() {
-  const feed = useFeed({ mode: 'public' });
+  const [excludeSelf, setExcludeSelf] = useState(true);
+  const feed = useFeed({ mode: 'public', excludeSelf });
 
   const onEndReached = useCallback(() => {
     if (feed.hasMore) feed.loadMore();
@@ -91,7 +158,7 @@ export default function FeedTab() {
         style={{ flex: 1, backgroundColor: theme.colors.bg }}
         edges={['top']}
       >
-        <FeedHeader />
+        <FeedHeader excludeSelf={excludeSelf} onChange={setExcludeSelf} />
         <SkeletonCard />
         <SkeletonCard />
         <SkeletonCard />
@@ -105,7 +172,7 @@ export default function FeedTab() {
         style={{ flex: 1, backgroundColor: theme.colors.bg }}
         edges={['top']}
       >
-        <FeedHeader />
+        <FeedHeader excludeSelf={excludeSelf} onChange={setExcludeSelf} />
         <View
           style={{
             flex: 1,
@@ -180,15 +247,25 @@ export default function FeedTab() {
             </Pressable>
           );
         }}
-        ListHeaderComponent={<FeedHeader />}
+        ListHeaderComponent={
+          <FeedHeader excludeSelf={excludeSelf} onChange={setExcludeSelf} />
+        }
         contentContainerStyle={{ paddingBottom: 24 }}
         ListEmptyComponent={
           !feed.loading ? (
-            <EmptyState
-              icon="coffee"
-              title="لا توجد قهوات بعد"
-              subtitle="كن أول من يشارك تجربته"
-            />
+            excludeSelf ? (
+              <EmptyState
+                icon="coffee"
+                title="لا توجد مشاركات من الآخرين "
+                subtitle="بأذن الله المزيد في الطريق"
+              />
+            ) : (
+              <EmptyState
+                icon="coffee"
+                title="لا توجد قهوات بعد"
+                subtitle="كن أول من يشارك تجربته"
+              />
+            )
           ) : null
         }
         ListFooterComponent={

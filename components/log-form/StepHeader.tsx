@@ -1,34 +1,16 @@
-import { router } from 'expo-router';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { getDisplayStep, useLogForm } from '@/lib/log-form-context';
 import { theme } from '@/lib/theme';
 
 type Props = {
   isEditing?: boolean;
+  onClose: () => void;
 };
 
-export function StepHeader({ isEditing = false }: Props) {
-  const { currentStep, formData, reset } = useLogForm();
+export function StepHeader({ isEditing = false, onClose }: Props) {
+  const { currentStep, formData } = useLogForm();
   const { displayStep, totalSteps } = getDisplayStep(currentStep, formData.brewMethod);
-
-  function handleClose() {
-    Alert.alert(
-      'هل تريد إلغاء التسجيل؟',
-      '',
-      [
-        { text: 'متابعة التسجيل', style: 'cancel' },
-        {
-          text: 'إلغاء',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.dismiss();
-          },
-        },
-      ],
-    );
-  }
 
   return (
     <View
@@ -41,7 +23,7 @@ export function StepHeader({ isEditing = false }: Props) {
       }}
     >
       <View style={{ width: 32, alignItems: 'flex-start' }}>
-        <Pressable hitSlop={12} onPress={handleClose}>
+        <Pressable hitSlop={12} onPress={onClose}>
           <Text style={{ fontSize: 28, color: theme.colors.muted, lineHeight: 30 }}>×</Text>
         </Pressable>
       </View>

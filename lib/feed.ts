@@ -48,7 +48,13 @@ type UseFeedReturn = {
   toggleLike: (logId: string, currentlyLiked: boolean) => Promise<void>;
 };
 
-export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
+export function useFeed({
+  mode,
+  excludeSelf = false,
+}: {
+  mode: FeedMode;
+  excludeSelf?: boolean;
+}): UseFeedReturn {
   const { user } = useSession();
   const [logs, setLogs] = useState<CoffeeLog[]>([]);
   const [likedLogIds, setLikedLogIds] = useState<Set<string>>(new Set());
@@ -80,8 +86,12 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
         .order('created_at', { ascending: false })
         .range(offsetRef.current, offsetRef.current + PAGE_SIZE - 1);
 
-      if (mode === 'public') query = query.eq('is_public', true);
-      else if (mode === 'self' && user) query = query.eq('user_id', user.id);
+      if (mode === 'public') {
+        query = query.eq('is_public', true);
+        if (excludeSelf && user) query = query.neq('user_id', user.id);
+      } else if (mode === 'self' && user) {
+        query = query.eq('user_id', user.id);
+      }
 
       // Run page fetch in parallel with liked-ids fetch on initial/refetch.
       const likedPromise =
@@ -109,7 +119,7 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
       setLoading(false);
       inFlightRef.current = false;
     },
-    [mode, user],
+    [mode, user, excludeSelf],
   );
 
   const refetch = useCallback(() => fetchPage(true), [fetchPage]);
@@ -211,8 +221,10 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
           filter,
         },
         async (payload) => {
-          const newRow = payload.new as { id?: string };
+          const newRow = payload.new as { id?: string; user_id?: string };
           if (!newRow.id) return;
+          // When showing only others' logs, don't prepend the current user's.
+          if (excludeSelf && user && newRow.user_id === user.id) return;
           const { data } = await supabase
             .from('coffee_logs')
             .select(SELECT_QUERY)
@@ -228,7 +240,7 @@ export function useFeed({ mode }: { mode: FeedMode }): UseFeedReturn {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mode, user]);
+  }, [mode, user, excludeSelf]);
 
   return {
     logs,

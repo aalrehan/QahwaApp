@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,7 +24,7 @@ import { Step6Final } from '@/components/log-form/Step6Final';
 import { StepFooter } from '@/components/log-form/StepFooter';
 import { StepHeader } from '@/components/log-form/StepHeader';
 import { useSession } from '@/lib/auth';
-import { LogFormProvider, useLogForm } from '@/lib/log-form-context';
+import { hasFormData, LogFormProvider, useLogForm } from '@/lib/log-form-context';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/lib/theme';
 import type { CoffeeLog, RawCoffeeLogRow } from '@/lib/types';
@@ -154,25 +154,38 @@ function FormHost({ editId }: { editId?: string }) {
     return () => clearTimeout(t);
   }, [phase, reset]);
 
-  // Android hardware back: same discard alert as the close button.
+  // Close handler shared by the header X and the Android hardware back button.
+  // Skips the confirmation when nothing has been entered yet.
+  const handleClose = useCallback(() => {
+    if (!hasFormData(formData)) {
+      reset();
+      router.dismiss();
+      return;
+    }
+    Alert.alert('تجاهل التسجيل؟', 'لديك بيانات غير محفوظة، هل تريد الخروج؟', [
+      {
+        text: 'تجاهل',
+        style: 'destructive',
+        onPress: () => {
+          reset();
+          router.dismiss();
+        },
+      },
+      { text: 'متابعة', style: 'cancel' },
+    ]);
+  }, [formData, reset]);
+
+  // Android hardware back: same discard logic as the close button.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (phase !== 'form') return false;
-      Alert.alert('هل تريد إلغاء التسجيل؟', '', [
-        { text: 'متابعة التسجيل', style: 'cancel' },
-        {
-          text: 'إلغاء',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.dismiss();
-          },
-        },
-      ]);
-      return true;
+      if (phase === 'form') {
+        handleClose();
+        return true;
+      }
+      return false;
     });
     return () => sub.remove();
-  }, [phase, reset]);
+  }, [phase, handleClose]);
 
   async function handleSubmit() {
     if (!user) {
@@ -382,7 +395,7 @@ function FormHost({ editId }: { editId?: string }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <StepHeader isEditing={isEditing} />
+        <StepHeader isEditing={isEditing} onClose={handleClose} />
         <View style={{ flex: 1 }}>
           <AnimatedStepContainer />
         </View>

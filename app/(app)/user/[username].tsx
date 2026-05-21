@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -181,30 +182,32 @@ function ProfileHeader({
       <LogoRow />
 
       <View style={{ marginTop: 24, alignItems: 'center', paddingHorizontal: 24 }}>
-        <View
+        <LinearGradient
+          colors={['#E8854A', '#6B3A1F']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={{
             width: 88,
             height: 88,
             borderRadius: 44,
-            backgroundColor: theme.colors.surface2,
-            borderWidth: 2,
-            borderColor: theme.colors.border,
             alignItems: 'center',
             justifyContent: 'center',
             alignSelf: 'center',
+            borderWidth: 2,
+            borderColor: theme.colors.border,
           }}
         >
           <Text
             style={{
               fontFamily: theme.fonts.arabicDecorative.bold,
               fontSize: 32,
-              color: theme.colors.brown,
+              color: '#FFFFFF',
               includeFontPadding: false,
             }}
           >
-            {initial}
+            {initial || '؟'}
           </Text>
-        </View>
+        </LinearGradient>
 
         <Text
           style={{
@@ -322,6 +325,11 @@ export default function PublicProfileScreen() {
   const { user } = useSession();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [logs, setLogs] = useState<CoffeeLog[]>([]);
+  const [stats, setStats] = useState<{
+    totalLogs: number;
+    avgRating: number | null;
+    uniqueCafes: number;
+  }>({ totalLogs: 0, avgRating: null, uniqueCafes: 0 });
   const [likedLogIds, setLikedLogIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -360,11 +368,23 @@ export default function PublicProfileScreen() {
       .order('created_at', { ascending: false })
       .limit(20);
 
+    // Lightweight stats query over ALL public logs (not just the 20 above),
+    // so totals stay accurate for users with more than 20 logs.
+    const statsPromise = supabase
+      .from('coffee_logs')
+      .select('id, overall_rating, cafe_id')
+      .eq('user_id', fetchedProfile.id)
+      .eq('is_public', true);
+
     const likedPromise = user
       ? fetchUserLikedIds(user.id)
       : Promise.resolve<Set<string>>(new Set());
 
-    const [logsRes, likedSet] = await Promise.all([logsPromise, likedPromise]);
+    const [logsRes, statsRes, likedSet] = await Promise.all([
+      logsPromise,
+      statsPromise,
+      likedPromise,
+    ]);
 
     if (logsRes.error) {
       setError(logsRes.error.message);
@@ -375,8 +395,23 @@ export default function PublicProfileScreen() {
     const flattened = ((logsRes.data ?? []) as unknown as RawCoffeeLogRow[]).map(
       flattenLog,
     );
+
+    const statRows = (statsRes.data ?? []) as {
+      overall_rating: number | null;
+      cafe_id: string | null;
+    }[];
+    const totalLogs = statRows.length;
+    const avgRating =
+      totalLogs > 0
+        ? statRows.reduce((sum, r) => sum + (r.overall_rating ?? 0), 0) / totalLogs
+        : null;
+    const uniqueCafes = new Set(
+      statRows.filter((r) => r.cafe_id).map((r) => r.cafe_id as string),
+    ).size;
+
     setProfile(fetchedProfile);
     setLogs(flattened);
+    setStats({ totalLogs, avgRating, uniqueCafes });
     setLikedLogIds(likedSet);
     setLoading(false);
   }, [username, user]);
@@ -448,18 +483,6 @@ export default function PublicProfileScreen() {
     },
     [user],
   );
-
-  const stats = useMemo(() => {
-    const totalLogs = logs.length;
-    const avgRating =
-      totalLogs > 0
-        ? logs.reduce((sum, l) => sum + (l.overall_rating ?? 0), 0) / totalLogs
-        : null;
-    const uniqueCafes = new Set(
-      logs.filter((l) => l.cafe_id).map((l) => l.cafe_id as string),
-    ).size;
-    return { totalLogs, avgRating, uniqueCafes };
-  }, [logs]);
 
   if (loading) {
     return (

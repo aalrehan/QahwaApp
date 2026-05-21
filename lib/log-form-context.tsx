@@ -167,6 +167,18 @@ export function useLogForm(): LogFormContextValue {
   return ctx;
 }
 
+// True when the user has entered anything worth warning about before discard.
+export function hasFormData(data: LogFormData): boolean {
+  return (
+    data.cafe !== null ||
+    data.drinkName.trim().length > 0 ||
+    data.brewMethod !== '' ||
+    (data.aromaNotes?.trim().length ?? 0) > 0 ||
+    data.flavorNoteIds.length > 0 ||
+    (data.overallRating ?? 0) > 0
+  );
+}
+
 export function isStepValid(step: number, data: LogFormData): boolean {
   switch (step) {
     case 1:

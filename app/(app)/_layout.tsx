@@ -76,6 +76,7 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen name="user/[username]" options={{ headerShown: false }} />
+      <Stack.Screen name="cafe/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

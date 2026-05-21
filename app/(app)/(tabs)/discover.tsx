@@ -1,9 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -15,8 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ShareableCoffeeLogCard } from '@/components/ShareableCoffeeLogCard';
-import { useCafeLogs, useCafeSearch, useTopCafes } from '@/lib/discover';
+import { useCafeSearch, useTopCafes } from '@/lib/discover';
 import type { CafeWithCount } from '@/lib/discover';
 import { theme } from '@/lib/theme';
 
@@ -334,169 +332,18 @@ function SearchView({ onSelectCafe }: { onSelectCafe: (cafe: CafeWithCount) => v
   );
 }
 
-function CafeLogsView({
-  cafe,
-  onBack,
-}: {
-  cafe: CafeWithCount;
-  onBack: () => void;
-}) {
-  const { logs, likedLogIds, loading, hasMore, loadMore, toggleLike } = useCafeLogs(cafe.id);
-
-  const onEndReached = useCallback(() => {
-    if (hasMore) void loadMore();
-  }, [hasMore, loadMore]);
-
-  return (
-    <FlatList
-      data={logs}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => {
-        const liked = likedLogIds.has(item.id);
-        return (
-          <Pressable
-            onPress={() =>
-              router.push({ pathname: '/(app)/log/[id]', params: { id: item.id } })
-            }
-          >
-            <ShareableCoffeeLogCard
-              log={item}
-              variant="feed"
-              isLiked={liked}
-              likesCount={item.likes_count ?? 0}
-              onLike={() => toggleLike(item.id, liked)}
-            />
-          </Pressable>
-        );
-      }}
-      ListHeaderComponent={
-        <View>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 16,
-              paddingTop: 16,
-              paddingBottom: 4,
-            }}
-          >
-            <View style={{ width: 30 }} />
-            <Text
-              style={{
-                flex: 1,
-                fontFamily: theme.fonts.arabicDisplay.bold,
-                fontSize: 18,
-                color: '#6B3A1F',
-                textAlign: 'center',
-              }}
-              numberOfLines={1}
-            >
-              {cafe.name_ar}
-            </Text>
-            <Pressable onPress={onBack} hitSlop={12} style={{ padding: 4 }}>
-              <Feather name="arrow-right" size={22} color="#6B3A1F" />
-            </Pressable>
-          </View>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 6,
-              marginBottom: 16,
-            }}
-          >
-            {cafe.city ? (
-              <>
-                <Text
-                  style={{
-                    fontFamily: theme.fonts.arabicBody.regular,
-                    fontSize: 12,
-                    color: '#8B7355',
-                    textAlign: 'right',
-                  }}
-                >
-                  {cafe.city}
-                </Text>
-                <View
-                  style={{
-                    width: 3,
-                    height: 3,
-                    borderRadius: 2,
-                    backgroundColor: '#B5A595',
-                  }}
-                />
-              </>
-            ) : null}
-            <Text
-              style={{
-                fontFamily: theme.fonts.arabicBody.regular,
-                fontSize: 12,
-                color: '#8B7355',
-                textAlign: 'right',
-              }}
-            >
-              {`${cafe.log_count} سجل قهوة`}
-            </Text>
-          </View>
-
-          {loading && logs.length === 0 ? (
-            <ActivityIndicator color="#6B3A1F" style={{ marginVertical: 40 }} />
-          ) : null}
-        </View>
-      }
-      ListEmptyComponent={
-        !loading ? (
-          <View
-            style={{
-              alignItems: 'center',
-              paddingVertical: 32,
-              paddingHorizontal: 32,
-            }}
-          >
-            <Feather name="coffee" size={32} color="#B5A595" />
-            <Text
-              style={{
-                marginTop: 12,
-                fontFamily: theme.fonts.arabicBody.regular,
-                fontSize: 14,
-                color: '#8B7355',
-                textAlign: 'center',
-              }}
-            >
-              لا توجد قهوات مسجلة لهذا المقهى
-            </Text>
-          </View>
-        ) : null
-      }
-      ListFooterComponent={
-        loading && logs.length > 0 ? (
-          <ActivityIndicator color="#6B3A1F" style={{ padding: 20 }} />
-        ) : null
-      }
-      contentContainerStyle={{ paddingBottom: 40 }}
-      onEndReached={onEndReached}
-      onEndReachedThreshold={0.5}
-    />
-  );
-}
-
 export default function DiscoverTab() {
-  const [selectedCafe, setSelectedCafe] = useState<CafeWithCount | null>(null);
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF7F2' }} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        {selectedCafe ? (
-          <CafeLogsView cafe={selectedCafe} onBack={() => setSelectedCafe(null)} />
-        ) : (
-          <SearchView onSelectCafe={setSelectedCafe} />
-        )}
+        <SearchView
+          onSelectCafe={(cafe) =>
+            router.push({ pathname: '/(app)/cafe/[id]', params: { id: cafe.id } })
+          }
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
